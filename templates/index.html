@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
+<style>
+#map{
+height:100vh;
+}
+</style>
+
+</head>
+
+<body>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script>
+
+var map = L.map('map').setView([28.6139, 77.2090], 11);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+maxZoom:19
+}).addTo(map);
+
+/* Load property markers from Flask */
+fetch('/properties')
+.then(response => response.json())
+.then(properties => {
+
+properties.forEach(property => {
+
+var marker = L.marker([property.lat, property.lng]).addTo(map);
+
+/* When user clicks a property marker */
+marker.on('click', function(){
+
+fetch('/predict', {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json'
+},
+body: JSON.stringify({
+features: [property.area, property.bedrooms, property.bathrooms, 2, 1, 5, 10, 0, 1, 0, 1, 0, 1]
+})
+})
+.then(res => res.json())
+.then(priceData => {
+
+var price = priceData.predicted_price;
+
+/* Get rental prediction */
+fetch('/predict_rent', {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json'
+},
+body: JSON.stringify({
+features: [property.area, property.bedrooms, property.bathrooms, 2, 1, 5, 10, 0, 1, 0, 1, 0, 1]
+})
+})
+.then(res => res.json())
+.then(rentData => {
+
+marker.bindPopup(
+"Area: " + property.area + " sqft<br>" +
+"BHK: " + property.bedrooms + "<br>" +
+"Predicted Price: ₹ " + price + "<br>" +
+"Predicted Rent: ₹ " + rentData.predicted_rent
+).openPopup();
+
+});
+
+});
+
+});
+
+});
+
+});
+
+</script>
+
+</body>
+</html>
