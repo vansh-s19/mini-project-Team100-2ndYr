@@ -145,8 +145,8 @@ export default function TransferPropertyPage() {
                     <SelectContent>
                       {userProperties.map((property) => (
                         <SelectItem key={property.id} value={property.id.toString()}>
-                          <span className="font-medium">{property.ownerName || "Property"}</span>
-                          <span className="ml-2 font-mono text-xs text-muted-foreground">
+                          <span className="font-medium truncate block max-w-[200px]">{property.ownerName || "Property Owner(s)"}</span>
+                          <span className="ml-2 font-mono text-xs text-muted-foreground shrink-0">
                             (#{property.id})
                           </span>
                         </SelectItem>

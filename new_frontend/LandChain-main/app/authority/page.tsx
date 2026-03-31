@@ -200,7 +200,7 @@ export default function AuthorityDashboardPage() {
                     <thead>
                       <tr className="border-b border-border/50">
                         <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                          Property
+                          Owner Name(s)
                         </th>
                         <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
                           Owner
@@ -221,7 +221,7 @@ export default function AuthorityDashboardPage() {
                         <tr key={property.id} className="transition-colors hover:bg-accent/30">
                           <td className="px-6 py-4">
                             <div>
-                              <p className="font-medium">{property.ownerName || "Unknown"}</p>
+                              <p className="font-medium truncate max-w-[200px]">{property.ownerName || "Unknown Owner(s)"}</p>
                               <p className="text-sm text-muted-foreground">{property.propertyAddress}</p>
                               <p className="font-mono text-xs text-muted-foreground">ID: {property.id}</p>
                             </div>

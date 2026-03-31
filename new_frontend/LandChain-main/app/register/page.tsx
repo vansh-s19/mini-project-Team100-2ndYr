@@ -14,7 +14,7 @@ import { useWeb3 } from "@/context/Web3Context"
 const BACKEND_URL = "http://localhost:5001"
 
 interface ExtractedData {
-  ownerName: string
+  ownerNames: string
   plotNumber: string
   registryId: string
   address: string
@@ -31,7 +31,7 @@ export default function RegisterPropertyPage() {
   const [isRegistered, setIsRegistered] = useState(false)
   const [ipfsHash, setIpfsHash] = useState("")
   const [formData, setFormData] = useState<ExtractedData>({
-    ownerName: "",
+    ownerNames: "",
     plotNumber: "",
     registryId: "",
     address: "",
@@ -52,7 +52,7 @@ export default function RegisterPropertyPage() {
       if (response.data.success) {
         const fields = response.data.fields
         setFormData({
-          ownerName: fields.ownerName || "",
+          ownerNames: fields.ownerName || "",
           plotNumber: fields.plotNumber || "",
           registryId: fields.registryId || "",
           address: fields.address || "",
@@ -117,7 +117,7 @@ export default function RegisterPropertyPage() {
       const tx = await contract.registerProperty(
         formData.registryId || "N/A",
         cid,
-        formData.ownerName || "N/A",
+        formData.ownerNames || "N/A",
         formData.plotNumber || "N/A",
         formData.area || "N/A",
         formData.address || "N/A"
@@ -163,7 +163,7 @@ export default function RegisterPropertyPage() {
                 <h2 className="text-2xl font-bold text-green-400">Property Registered!</h2>
                 <p className="mt-2 text-muted-foreground">Your property has been recorded on the blockchain.</p>
                 <p className="mt-2 font-mono text-xs text-muted-foreground">IPFS CID: {ipfsHash}</p>
-                <Button className="mt-6 rounded-xl" onClick={() => { setIsRegistered(false); setFile(null); setIsExtracted(false); setFormData({ ownerName: "", plotNumber: "", registryId: "", address: "", area: "", date: "" }) }}>
+                <Button className="mt-6 rounded-xl" onClick={() => { setIsRegistered(false); setFile(null); setIsExtracted(false); setFormData({ ownerNames: "", plotNumber: "", registryId: "", address: "", area: "", date: "" }) }}>
                   Register Another Property
                 </Button>
               </CardContent>
@@ -264,12 +264,12 @@ export default function RegisterPropertyPage() {
                 <CardContent>
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="ownerName">Owner Name</Label>
+                      <Label htmlFor="ownerNames">Owner Name(s)</Label>
                       <Input
-                        id="ownerName"
-                        value={formData.ownerName}
-                        onChange={(e) => handleInputChange("ownerName", e.target.value)}
-                        placeholder="Enter owner name"
+                        id="ownerNames"
+                        value={formData.ownerNames}
+                        onChange={(e) => handleInputChange("ownerNames", e.target.value)}
+                        placeholder="Enter owner name(s), separated by commas"
                         className="rounded-lg bg-secondary/50"
                       />
                     </div>

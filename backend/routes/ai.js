@@ -42,8 +42,8 @@ router.post("/chat", async (req, res) => {
 
   try {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    // Use gemini-pro which has broader compatibility across API keys
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    // Use gemini-2.5-flash for 2026 standards
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     // Format history for Gemini
     const chat = model.startChat({

@@ -63,14 +63,18 @@ function parsePropertyFields(text) {
 
   // ── Owner Name patterns ──
   const ownerPatterns = [
-    /(?:owner|name|registered\s*to|holder|proprietor)\s*[:\-—]?\s*(.+)/i,
-    /(?:shri|smt|mr|mrs|ms)\.?\s+([A-Za-z\s]+)/i,
+    /(?:owner|names|registered\s*to|holders|proprietors|purchaser|buyer)\s*[:\-—]?\s*(.+)/i,
+    /(?:shri|smt|mr|mrs|ms)\.?\s+([A-Za-z0-9\s,&]+)/i,
     /(?:son|daughter|wife)\s+of\s+/i,
   ];
   for (const pattern of ownerPatterns) {
     const match = text.match(pattern);
     if (match && match[1]) {
-      fields.ownerName = match[1].trim().substring(0, 100);
+      // Clean up multiple names - often separated by commas or 'and'
+      let names = match[1].trim();
+      // Basic cleanup of common noise at the end of a line
+      names = names.split(/\r?\n/)[0].trim();
+      fields.ownerName = names.substring(0, 150);
       break;
     }
   }

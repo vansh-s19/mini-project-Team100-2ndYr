@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
+import { useWeb3 } from "@/context/Web3Context"
 
 const BACKEND_URL = "http://localhost:5001"
 
@@ -18,8 +19,10 @@ interface Message {
 }
 
 export function AIChat() {
+  const { account, isConnected } = useWeb3()
+  console.log("AIChat Web3 Status:", { isConnected, account })
   const [isOpen, setIsOpen] = useState(false)
-  const [isMuted, setIsMuted] = useState(true)
+  const [isMuted, setIsMuted] = useState(false)
   const [isListening, setIsListening] = useState(false)
   const [input, setInput] = useState("")
   const [messages, setMessages] = useState<Message[]>([
@@ -30,13 +33,11 @@ export function AIChat() {
     }
   ])
   const [isLoading, setIsLoading] = useState(false)
-  const scrollRef = useRef<HTMLDivElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-    }
-  }, [messages])
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages, isLoading])
 
   const speak = (text: string) => {
     if (isMuted) return
@@ -67,7 +68,13 @@ export function AIChat() {
 
     recognition.onstart = () => setIsListening(true)
     recognition.onend = () => setIsListening(false)
-    recognition.onerror = () => setIsListening(false)
+    recognition.onerror = (event: any) => {
+      console.error("Speech Recognition Error:", event.error)
+      if (event.error === 'not-allowed') {
+        alert("Microphone access denied. Please enable it in your browser settings to use voice features.")
+      }
+      setIsListening(false)
+    }
     
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript
@@ -91,6 +98,7 @@ export function AIChat() {
       timestamp: new Date()
     }
     setMessages(prev => [...prev, userMessage])
+    setInput("")
     setIsLoading(true)
 
     try {
@@ -165,27 +173,40 @@ export function AIChat() {
   }
 
   return (
-    <div className="fixed z-50 flex flex-col items-end" style={{ bottom: "0px", right: "0px" }}>
+    <div className="fixed z-[60] flex flex-col items-end" style={{ bottom: "20px", right: "20px" }}>
       <AnimatePresence>
         {isOpen && (
           <motion.div
             initial={{ opacity: 0, scale: 0.8, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 20 }}
-            className="mr-2"
           >
-            <Card className="w-[380px] h-[500px] flex flex-col shadow-2xl border-primary/20 bg-background/80 backdrop-blur-xl overflow-hidden mb-2">
-              {/* Header */}
-              <div className="p-4 bg-primary/10 border-b border-primary/20 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                    <Sparkles className="w-4 h-4 text-primary" />
+            <Card className="w-[380px] h-[600px] flex flex-col shadow-2xl border-primary/20 bg-[#0f1115] overflow-hidden mb-4 rounded-3xl border">
+              {/* Header - Fixed/Pinned at the top */}
+              <div className="shrink-0 z-30 p-5 bg-background/80 backdrop-blur-xl border-b border-white/5 flex items-center justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center shadow-inner">
+                    <Sparkles className="w-5 h-5 text-primary" />
                   </div>
-                  <div>
-                    <h3 className="text-sm font-bold">LandChain AI</h3>
-                    <div className="flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                      <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Online</span>
+                  <div className="min-w-0">
+                    <h3 className="text-base font-bold text-white truncate leading-tight">LandChain AI</h3>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
+                        <span className="text-[11px] text-green-500 font-bold uppercase tracking-wider">Online</span>
+                      </div>
+                      
+                      {isConnected && account && (
+                        <>
+                          <div className="w-1 h-1 rounded-full bg-white/20 shrink-0" />
+                          <div className="flex items-center gap-1.5 bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
+                            <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                            <span className="text-[10px] text-primary font-mono font-medium">
+                              {account.slice(0, 4)}...{account.slice(-4)}
+                            </span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -208,15 +229,15 @@ export function AIChat() {
                 </div>
               </div>
 
-              {/* Messages */}
-              <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-                <div className="space-y-4">
+               {/* Messages Area - Explicitly constrained for height */}
+              <ScrollArea className="flex-1 h-[calc(600px-160px)]">
+                <div className="p-5 space-y-5">
                   {messages.map((msg, idx) => (
                     <div key={idx} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                       <div className={`max-w-[80%] p-3 rounded-2xl text-sm ${
                         msg.role === "user" 
                           ? "bg-primary text-primary-foreground rounded-tr-none" 
-                          : "bg-muted border border-border rounded-tl-none"
+                           : "bg-muted border border-border rounded-tl-none"
                       }`}>
                         {msg.content}
                       </div>
@@ -230,6 +251,7 @@ export function AIChat() {
                       </div>
                     </div>
                   )}
+                  <div ref={messagesEndRef} />
                 </div>
               </ScrollArea>
 
@@ -242,15 +264,19 @@ export function AIChat() {
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                      className={`bg-background/50 border-primary/20 ${isListening ? "border-primary animate-pulse" : ""}`}
+                      className={`bg-background/50 border-primary/20 pr-12 ${isListening ? "border-primary animate-pulse" : ""}`}
                     />
-                    <Button 
+                     <Button 
                       size="sm" 
                       variant="ghost" 
                       onClick={toggleListening}
-                      className={`absolute right-1 top-1/2 -translate-y-1/2 rounded-full w-8 h-8 p-0 ${isListening ? "text-primary animate-bounce" : "text-muted-foreground"}`}
+                      className={`absolute right-1 top-1/2 -translate-y-1/2 rounded-full w-10 h-10 p-0 transition-all z-20 ${isListening ? "text-primary bg-primary/20 shadow-[0_0_15px_rgba(var(--primary),0.5)]" : "text-primary/70 hover:text-primary hover:bg-primary/10"}`}
                     >
-                      {isListening ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
+                      {isListening ? (
+                        <Mic className="w-6 h-6 animate-pulse" />
+                      ) : (
+                        <Mic className="w-6 h-6" />
+                      )}
                     </Button>
                   </div>
                   <Button size="icon" onClick={handleSend} disabled={isLoading || isListening}>
@@ -269,7 +295,12 @@ export function AIChat() {
         onClick={() => setIsOpen(!isOpen)}
         className="w-20 h-20 rounded-full bg-primary text-primary-foreground shadow-2xl flex items-center justify-center hover:bg-primary/90 transition-colors border-2 border-background"
       >
-        {isOpen ? <X className="w-8 h-8" /> : <MessageCircle className="w-8 h-8" />}
+         {isOpen ? <X className="w-8 h-8" /> : (
+          <div className="relative">
+            <MessageCircle className="w-8 h-8" />
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-background animate-pulse" />
+          </div>
+        )}
       </motion.button>
     </div>
   )

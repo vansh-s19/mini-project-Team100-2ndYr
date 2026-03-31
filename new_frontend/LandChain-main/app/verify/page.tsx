@@ -194,7 +194,7 @@ export default function PublicVerificationPage() {
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
-                      <h2 className="text-xl font-bold">{result.ownerName || "Property"}</h2>
+                      <h2 className="text-xl font-bold truncate max-w-[400px]">{result.ownerName || "Property Owner(s)"}</h2>
                       <Badge variant="outline" className={
                         result.verified 
                           ? "border-green-500/30 bg-green-500/10 text-green-500"
@@ -220,7 +220,7 @@ export default function PublicVerificationPage() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex justify-between border-b border-border/50 pb-3">
-                      <span className="text-muted-foreground">Owner</span>
+                      <span className="text-muted-foreground">Owner Address</span>
                       <span className="font-mono text-sm">{truncateAddress(result.owner)}</span>
                     </div>
                     <div className="flex justify-between border-b border-border/50 pb-3">
