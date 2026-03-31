@@ -5,6 +5,7 @@ require("dotenv").config();
 
 const ocrRoutes = require("./routes/ocr");
 const ipfsRoutes = require("./routes/ipfs");
+const aiRoutes = require("./routes/ai");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -24,6 +25,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 // ───────────────────────── Routes ─────────────────────────
 app.use("/api/ocr", ocrRoutes);
 app.use("/api/ipfs", ipfsRoutes);
+app.use("/api/ai", aiRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {
@@ -33,6 +35,7 @@ app.get("/api/health", (req, res) => {
     services: {
       ocr: "active",
       ipfs: process.env.PINATA_JWT ? "pinata" : "mock",
+      ai: "active"
     },
   });
 });

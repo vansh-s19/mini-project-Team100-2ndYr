@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Upload, FileText, ScanText, HardDrive, Loader2, CheckCircle } from "lucide-react"
 import { useWeb3 } from "@/context/Web3Context"
 
-const BACKEND_URL = "http://localhost:5000"
+const BACKEND_URL = "http://localhost:5001"
 
 interface ExtractedData {
   ownerName: string
