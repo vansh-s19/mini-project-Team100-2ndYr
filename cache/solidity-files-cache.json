@@ -1,0 +1,40 @@
+{
+  "_format": "hh-sol-cache-2",
+  "files": {
+    "C:\\Users\\Lenovo\\Desktop\\Blockchain-Based-Real-Estate-Handling\\contracts\\LandRegistry.sol": {
+      "lastModificationDate": 1774948456730,
+      "contentHash": "5da7505eee7f342e618bb658bbd40f1a",
+      "sourceName": "contracts/LandRegistry.sol",
+      "solcConfig": {
+        "version": "0.8.19",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.19"
+      ],
+      "artifacts": [
+        "LandRegistry"
+      ]
+    }
+  }
+}
