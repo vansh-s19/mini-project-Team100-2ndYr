@@ -11,9 +11,18 @@
     "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install"
   },
   "devDependencies": {
-    "hardhat": "^2.19.4",
-    "@nomicfoundation/hardhat-toolbox": "^4.0.0"
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "hardhat": "^2.19.4"
   },
-  "keywords": ["blockchain", "real-estate", "property-registry", "ethereum", "solidity"],
-  "license": "MIT"
+  "keywords": [
+    "blockchain",
+    "real-estate",
+    "property-registry",
+    "ethereum",
+    "solidity"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^17.3.1"
+  }
 }
