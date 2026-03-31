@@ -1,0 +1,19 @@
+{
+  "name": "blockchain-real-estate-registry",
+  "version": "1.0.0",
+  "description": "Blockchain-Based Real Estate Property Registry and Transfer Platform",
+  "scripts": {
+    "compile": "npx hardhat compile",
+    "node": "npx hardhat node",
+    "deploy": "npx hardhat run scripts/deploy.js --network localhost",
+    "backend": "cd backend && node server.js",
+    "frontend": "cd frontend && npm run dev",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install"
+  },
+  "devDependencies": {
+    "hardhat": "^2.19.4",
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0"
+  },
+  "keywords": ["blockchain", "real-estate", "property-registry", "ethereum", "solidity"],
+  "license": "MIT"
+}
