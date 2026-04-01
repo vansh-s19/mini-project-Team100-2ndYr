@@ -1,4 +1,6 @@
-const { simd } = require('wasm-feature-detect');
+'use strict';
+
+const { simd, relaxedSimd } = require('wasm-feature-detect');
 const coreVersion = require('../../../package.json').dependencies['tesseract.js-core'];
 
 module.exports = async (lstmOnly, corePath, res) => {
@@ -20,7 +22,14 @@ module.exports = async (lstmOnly, corePath, res) => {
       corePathImportFile = corePathImport;
     } else {
       const simdSupport = await simd();
-      if (simdSupport) {
+      const relaxedSimdSupport = await relaxedSimd();
+      if (relaxedSimdSupport) {
+        if (lstmOnly) {
+          corePathImportFile = `${corePathImport.replace(/\/$/, '')}/tesseract-core-relaxedsimd-lstm.wasm.js`;
+        } else {
+          corePathImportFile = `${corePathImport.replace(/\/$/, '')}/tesseract-core-relaxedsimd.wasm.js`;
+        }
+      } else if (simdSupport) {
         if (lstmOnly) {
           corePathImportFile = `${corePathImport.replace(/\/$/, '')}/tesseract-core-simd-lstm.wasm.js`;
         } else {

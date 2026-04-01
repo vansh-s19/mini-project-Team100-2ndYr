@@ -37,7 +37,7 @@ Finally, start the Vite development server for the React web application.
 ```powershell
 npm run frontend
 ```
-*Your frontend will open automatically or be available at `http://localhost:5173`. Leave this terminal open.*
+*Your frontend will open automatically or be available at `http://localhost:3000`. Leave this terminal open.*
 
 ---
 

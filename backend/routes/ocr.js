@@ -1,12 +1,15 @@
 const express = require("express");
 const multer = require("multer");
-const { createWorker } = require("tesseract.js");
+const Tesseract = require("tesseract.js");
 const path = require("path");
 const fs = require("fs");
+require("dotenv").config();
 
 const router = express.Router();
 
-// Configure multer for file uploads
+/**
+ * Configure multer for file uploads
+ */
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = path.join(__dirname, "..", "uploads");
@@ -29,161 +32,87 @@ const upload = multer({
       "image/png",
       "image/jpeg",
       "image/jpg",
-      "image/tiff",
-      "image/bmp",
-      "application/pdf",
+      "image/webp"
     ];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error("Invalid file type. Only images and PDFs are allowed."));
+      cb(new Error("Invalid file type. Only images are allowed for Tesseract OCR."));
     }
   },
 });
 
 /**
- * Parse extracted OCR text to identify structured property fields.
- * Uses multiple regex patterns to maximize field extraction.
- */
-function parsePropertyFields(text) {
-  const fields = {
-    ownerName: "",
-    plotNumber: "",
-    registryId: "",
-    area: "",
-    address: "",
-    date: "",
-  };
-
-  if (!text) return fields;
-
-  // Normalize text - collapse newlines and extra spaces
-  const normalized = text.replace(/\r\n/g, "\n").replace(/\n+/g, "\n");
-  const lines = normalized.split("\n").map((l) => l.trim()).filter(Boolean);
-
-  // ── Owner Name patterns ──
-  const ownerPatterns = [
-    /(?:owner|name|registered\s*to|holder|proprietor)\s*[:\-—]?\s*(.+)/i,
-    /(?:shri|smt|mr|mrs|ms)\.?\s+([A-Za-z\s]+)/i,
-    /(?:son|daughter|wife)\s+of\s+/i,
-  ];
-  for (const pattern of ownerPatterns) {
-    const match = text.match(pattern);
-    if (match && match[1]) {
-      fields.ownerName = match[1].trim().substring(0, 100);
-      break;
-    }
-  }
-
-  // ── Plot Number patterns ──
-  const plotPatterns = [
-    /(?:plot|khasra|survey|parcel)\s*(?:no|number|#)?\s*[:\-—]?\s*([A-Za-z0-9\-\/]+)/i,
-    /(?:plot)\s+(\d+[A-Za-z]?)/i,
-  ];
-  for (const pattern of plotPatterns) {
-    const match = text.match(pattern);
-    if (match && match[1]) {
-      fields.plotNumber = match[1].trim();
-      break;
-    }
-  }
-
-  // ── Registry ID patterns ──
-  const registryPatterns = [
-    /(?:registry|registration|document|deed)\s*(?:id|no|number|#)?\s*[:\-—]?\s*([A-Za-z0-9\-\/]+)/i,
-    /(?:reg)\s*\.?\s*(?:no|id)\s*[:\-—]?\s*([A-Za-z0-9\-\/]+)/i,
-  ];
-  for (const pattern of registryPatterns) {
-    const match = text.match(pattern);
-    if (match && match[1]) {
-      fields.registryId = match[1].trim();
-      break;
-    }
-  }
-
-  // ── Area patterns ──
-  const areaPatterns = [
-    /(?:area|extent|measurement|size)\s*[:\-—]?\s*([\d,\.]+\s*(?:sq\.?\s*(?:ft|feet|m|meters|yards|mtr)|acres?|hectares?|bigha|biswa|gaj|marla|kanal|cent))/i,
-    /(\d+[\d,\.]*\s*(?:sq\.?\s*(?:ft|feet|m|meters)|acres?|hectares?))/i,
-  ];
-  for (const pattern of areaPatterns) {
-    const match = text.match(pattern);
-    if (match) {
-      fields.area = match[1] ? match[1].trim() : match[0].trim();
-      break;
-    }
-  }
-
-  // ── Address patterns ──
-  const addressPatterns = [
-    /(?:address|location|situated\s*at|property\s*at|village|district|tehsil)\s*[:\-—]?\s*(.+)/i,
-  ];
-  for (const pattern of addressPatterns) {
-    const match = text.match(pattern);
-    if (match && match[1]) {
-      fields.address = match[1].trim().substring(0, 200);
-      break;
-    }
-  }
-
-  // ── Date patterns ──
-  const datePatterns = [
-    /(?:date|dated|registration\s*date|reg\.\s*date)\s*[:\-—]?\s*(\d{1,2}[\-\/\.]\d{1,2}[\-\/\.]\d{2,4})/i,
-    /(\d{1,2}[\-\/\.]\d{1,2}[\-\/\.]\d{4})/,
-    /(\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{4})/i,
-  ];
-  for (const pattern of datePatterns) {
-    const match = text.match(pattern);
-    if (match && match[1]) {
-      fields.date = match[1].trim();
-      break;
-    }
-  }
-
-  return fields;
-}
-
-/**
  * POST /api/ocr/extract
- * Upload an image or PDF and extract property fields via OCR.
+ * Upload an image and extract property fields via Tesseract.js Local Engine.
+ * Reverted from Gemini as per user request for stability.
  */
 router.post("/extract", upload.single("document"), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: "No file uploaded" });
   }
 
-  console.log(`📄 OCR processing: ${req.file.originalname}`);
+  console.log(`📄 OCR Scan Start (Tesseract): ${req.file.originalname}`);
 
   try {
-    // Initialize Tesseract worker
-    const worker = await createWorker("eng");
+    const { data: { text } } = await Tesseract.recognize(req.file.path, 'eng', {
+      logger: m => console.log(`  [OCR] ${m.status}: ${(m.progress * 100).toFixed(1)}%`)
+    });
 
-    // Perform OCR
-    const {
-      data: { text, confidence },
-    } = await worker.recognize(req.file.path);
+    console.log("✅ OCR Raw Text Extracted. Parsing fields...");
 
-    await worker.terminate();
+    // Basic Regex Parsing for Property Details
+    const fields = {
+      ownerName: "",
+      plotNumber: "",
+      registryId: "",
+      address: "",
+      area: ""
+    };
 
-    console.log(`✅ OCR complete. Confidence: ${confidence}%`);
+    // Owner Name Pattern: "Owner: [Name]" or "Name: [Name]"
+    const ownerMatch = text.match(/(?:Owner|Name)[:\s]+([A-Z\s]{3,})/i);
+    if (ownerMatch) fields.ownerName = ownerMatch[1].trim();
 
-    // Parse structured fields from raw text
-    const fields = parsePropertyFields(text);
+    // Registry ID Pattern: "Registry ID: [ID]" or "ID: [ID]"
+    const idMatch = text.match(/(?:Registry ID|ID)[:\s]+([A-Z0-9-]{4,})/i);
+    if (idMatch) fields.registryId = idMatch[1].trim();
+
+    // Plot/Khasra Number Pattern: "Plot No: [No]"
+    const plotMatch = text.match(/(?:Plot|Khasra|Survey)[:\s]+No[:\s]*([0-9A-Z/]{2,})/i);
+    if (plotMatch) fields.plotNumber = plotMatch[1].trim();
+
+    // Area Pattern: "[Digits] sq ft"
+    const areaMatch = text.match(/([0-9,]+)\s*(?:sq\s*ft|square\s*feet|sqm)/i);
+    if (areaMatch) fields.area = areaMatch[0].trim();
+
+    // Fallback: If registry ID wasn't found via prefix, look for any uppercase code with numbers
+    if (!fields.registryId) {
+      const fallbackId = text.match(/[A-Z]{2,}-\d{4,}/);
+      if (fallbackId) fields.registryId = fallbackId[0];
+    }
 
     res.json({
       success: true,
-      rawText: text,
-      confidence: Math.round(confidence),
       fields,
       fileName: req.file.originalname,
-      filePath: req.file.filename,
+      mode: "tesseract-local"
     });
+
   } catch (error) {
-    console.error("OCR Error:", error);
+    console.error("🔥 OCR Engine Error:", error.message);
     res.status(500).json({
-      error: "OCR processing failed",
-      message: error.message,
+      success: false,
+      error: "OCR Local Failure",
+      message: error.message
     });
+  } finally {
+    // Clean up uploaded file
+    try {
+      fs.unlinkSync(req.file.path);
+    } catch (e) {
+      console.warn("Could not delete temp file:", e.message);
+    }
   }
 });
 

@@ -7,8 +7,8 @@
     "node": "npx hardhat node",
     "deploy": "npx hardhat run scripts/deploy.js --network localhost",
     "backend": "cd backend && node server.js",
-    "frontend": "cd frontend && npm run dev",
-    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install"
+    "frontend": "cd new_frontend/LandChain-main && npm run dev",
+    "install:all": "npm install && cd backend && npm install && cd ../new_frontend/LandChain-main && npm install"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^4.0.0",
