@@ -13,6 +13,8 @@ const navLinks = [
   { href: "/", label: "Home" },
   { href: "/register", label: "Register" },
   { href: "/properties", label: "My Properties" },
+  { href: "/market", label: "Market" },
+  { href: "/maps", label: "Maps" },
   { href: "/transfer", label: "Transfer" },
   { href: "/verify", label: "Verify" },
   { href: "/authority", label: "Authority" },
@@ -51,7 +53,7 @@ export function Header() {
                 glowIntensity={1}
                 coneSpread={25}
                 animated={false}
-                colors={['#c084fc', '#f472b6', '#38bdf8']}
+                colors={['#10b981', '#14b8a6', '#4ade80']}
               >
                 <Link
                   href={link.href}
@@ -77,7 +79,7 @@ export function Header() {
               </div>
             ) : (
               <ElectricBorder
-                color="#7df9ff"
+                color="#10b981"
                 speed={1}
                 chaos={0.12}
                 className=""
@@ -112,7 +114,7 @@ export function Header() {
                       glowIntensity={1}
                       coneSpread={25}
                       animated={false}
-                      colors={['#c084fc', '#f472b6', '#38bdf8']}
+                      colors={['#10b981', '#14b8a6', '#4ade80']}
                     >
                       <Link
                         href={link.href}
@@ -138,7 +140,7 @@ export function Header() {
                     </div>
                   ) : (
                     <ElectricBorder
-                      color="#7df9ff"
+                      color="#10b981"
                       speed={1}
                       chaos={0.12}
                       className=""

@@ -2,12 +2,12 @@ import { Header } from "@/components/header"
 import { ScrollytellingHero } from "@/components/scrollytelling-hero"
 import { FeaturesSection } from "@/components/features-section"
 import { DashboardPreview } from "@/components/dashboard-preview"
+import { LivePulse } from "@/components/LivePulse"
 import { WorkflowSection } from "@/components/workflow-section"
 import { CTASection } from "@/components/cta-section"
 import { Footer } from "@/components/footer"
 import Particles from "@/components/Particles"
 import { SmoothScroll } from "@/components/SmoothScroll"
-
 
 export default function HomePage() {
   return (
@@ -32,6 +32,7 @@ export default function HomePage() {
           <Header />
           <ScrollytellingHero />
           <FeaturesSection />
+          <LivePulse />
           <DashboardPreview />
           <WorkflowSection />
           <CTASection />

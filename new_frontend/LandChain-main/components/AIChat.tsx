@@ -41,7 +41,6 @@ export function AIChat() {
 
   const speak = (text: string) => {
     if (isMuted) return
-    // Cancel any current speech
     window.speechSynthesis.cancel()
     const utterance = new SpeechSynthesisUtterance(text)
     utterance.rate = 1.1
@@ -79,7 +78,6 @@ export function AIChat() {
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript
       setInput(transcript)
-      // Auto-send after a small delay to let the user see the text
       setTimeout(() => {
         handleSendFromVoice(transcript)
       }, 500)
@@ -88,7 +86,6 @@ export function AIChat() {
     recognition.start()
   }
 
-  // Specialized send for voice to handle the updated transcript correctly
   const handleSendFromVoice = async (voiceText: string) => {
     if (!voiceText.trim()) return
 
@@ -151,7 +148,6 @@ export function AIChat() {
       })
 
       const data = await response.json()
-      
       const aiMessage: Message = {
         role: "ai",
         content: data.response,
@@ -173,81 +169,86 @@ export function AIChat() {
   }
 
   return (
-    <div className="fixed z-[60] flex flex-col items-end" style={{ bottom: "20px", right: "20px" }}>
+    <div className="fixed z-[60] flex flex-col items-end shadow-2xl" style={{ bottom: "20px", right: "20px" }}>
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.8, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.8, y: 20 }}
+            initial={{ opacity: 0, scale: 0.9, y: 40, filter: "blur(10px)" }}
+            animate={{ opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }}
+            exit={{ opacity: 0, scale: 0.9, y: 40, filter: "blur(10px)" }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="mb-6"
           >
-            <Card className="w-[380px] h-[600px] flex flex-col shadow-2xl border-primary/20 bg-[#0f1115] overflow-hidden mb-4 rounded-3xl border">
-              {/* Header - Fixed/Pinned at the top */}
-              <div className="shrink-0 z-30 p-5 bg-background/80 backdrop-blur-xl border-b border-white/5 flex items-center justify-between">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center shadow-inner">
-                    <Sparkles className="w-5 h-5 text-primary" />
+            <Card className="w-[420px] h-[650px] flex flex-col shadow-[0_0_80px_rgba(16,185,129,0.1)] border-border/50 bg-[#0f1513]/95 backdrop-blur-3xl overflow-hidden rounded-[40px] border">
+              
+              {/* Header Container */}
+              <div className="shrink-0 z-30 p-8 bg-secondary/30 border-b border-border/50 flex items-center justify-between relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-emerald-500 to-transparent opacity-30" />
+                
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="relative">
+                    <div className="w-12 h-12 rounded-2xl bg-secondary/50 flex items-center justify-center border border-border shadow-inner">
+                      <Sparkles className="w-6 h-6 text-emerald-400" />
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-4 border-[#0f1513] animate-pulse" />
                   </div>
+                  
                   <div className="min-w-0">
-                    <h3 className="text-base font-bold text-white truncate leading-tight">LandChain AI</h3>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
-                        <span className="text-[11px] text-green-500 font-bold uppercase tracking-wider">Online</span>
-                      </div>
-                      
-                      {isConnected && account && (
-                        <>
-                          <div className="w-1 h-1 rounded-full bg-white/20 shrink-0" />
-                          <div className="flex items-center gap-1.5 bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
-                            <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                            <span className="text-[10px] text-primary font-mono font-medium">
-                              {account.slice(0, 4)}...{account.slice(-4)}
-                            </span>
-                          </div>
-                        </>
-                      )}
+                    <h3 className="text-lg font-black text-white tracking-tight">LandChain <span className="text-emerald-400">Core</span></h3>
+                    <div className="flex items-center gap-2">
+                       <span className="text-[10px] text-emerald-500/70 font-black uppercase tracking-[0.2em]">Neural Engine v3</span>
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-1">
+
+                <div className="flex items-center gap-2">
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    onClick={() => {
-                      const newMute = !isMuted;
-                      setIsMuted(newMute);
-                      if (newMute) window.speechSynthesis.cancel();
-                    }} 
-                    className="hover:bg-primary/20"
+                    onClick={() => setIsMuted(!isMuted)} 
+                    className="rounded-xl border border-border/50 hover:bg-secondary/50 w-10 h-10"
                   >
-                    {isMuted ? <VolumeX className="w-4 h-4 text-muted-foreground" /> : <Volume2 className="w-4 h-4 text-primary" />}
+                    {isMuted ? <VolumeX className="w-5 h-5 text-slate-500" /> : <Volume2 className="w-5 h-5 text-emerald-400" />}
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="hover:bg-primary/20">
-                    <X className="w-4 h-4" />
+                  <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="rounded-xl border border-border/50 hover:bg-secondary/50 w-10 h-10">
+                    <X className="w-5 h-5" />
                   </Button>
                 </div>
               </div>
 
-               {/* Messages Area - Explicitly constrained for height */}
-              <ScrollArea className="flex-1 h-[calc(600px-160px)]">
-                <div className="p-5 space-y-5">
+               {/* Messages Area */}
+              <ScrollArea className="flex-1 h-[calc(650px-180px)]">
+                <div className="p-8 space-y-6">
                   {messages.map((msg, idx) => (
-                    <div key={idx} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                      <div className={`max-w-[80%] p-3 rounded-2xl text-sm ${
+                    <motion.div 
+                      key={idx} 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                    >
+                      <div className={`max-w-[85%] p-5 rounded-[28px] text-sm leading-relaxed shadow-sm ${
                         msg.role === "user" 
-                          ? "bg-primary text-primary-foreground rounded-tr-none" 
-                           : "bg-muted border border-border rounded-tl-none"
+                          ? "bg-emerald-600 text-white rounded-tr-none font-bold shadow-emerald-500/20" 
+                          : "bg-secondary/40 border border-border/50 text-slate-200 rounded-tl-none backdrop-blur-md"
                       }`}>
                         {msg.content}
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
                   {isLoading && (
                     <div className="flex justify-start">
-                      <div className="bg-muted border border-border p-3 rounded-2xl rounded-tl-none flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                        <span className="text-xs text-muted-foreground italic">Thinking...</span>
+                      <div className="bg-secondary/40 border border-border/50 p-5 rounded-[28px] rounded-tl-none flex items-center gap-3">
+                        <div className="flex gap-1.5">
+                          {[1,2,3].map(i => (
+                            <motion.div 
+                              key={i}
+                              animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }}
+                              transition={{ repeat: Infinity, duration: 1, delay: i * 0.2 }}
+                              className="w-1.5 h-1.5 bg-emerald-500 rounded-full"
+                            />
+                          ))}
+                        </div>
+                        <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Analysing...</span>
                       </div>
                     </div>
                   )}
@@ -255,33 +256,55 @@ export function AIChat() {
                 </div>
               </ScrollArea>
 
-              {/* Input */}
-              <div className="p-4 bg-muted/30 border-t border-border">
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
+              {/* Enhanced Input Area */}
+              <div className="p-8 bg-secondary/20 border-t border-border/50">
+                <AnimatePresence>
+                  {isListening && (
+                    <motion.div 
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="flex items-center justify-center gap-1.5 mb-6"
+                    >
+                      {[...Array(16)].map((_, i) => (
+                        <motion.div
+                          key={i}
+                          animate={{ height: [4, Math.random() * 24 + 8, 4] }}
+                          transition={{ repeat: Infinity, duration: 0.5, delay: i * 0.05 }}
+                          className="w-1 bg-emerald-500/40 rounded-full"
+                        />
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <div className="flex gap-3">
+                  <div className="relative flex-1 group">
                     <Input 
-                      placeholder={isListening ? "Listening..." : "Type a message..."}
+                      placeholder={isListening ? "Listening..." : "Ask the AI..."}
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                      className={`bg-background/50 border-primary/20 pr-12 ${isListening ? "border-primary animate-pulse" : ""}`}
+                      className={`bg-secondary/50 border-border/50 h-16 rounded-2xl pl-12 pr-4 focus:border-emerald-500/50 transition-all font-medium ${isListening ? "border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.1)]" : ""}`}
                     />
-                     <Button 
-                      size="sm" 
-                      variant="ghost" 
+                    <Bot className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-600 group-focus-within:text-emerald-400 transition-colors" />
+                  </div>
+                  
+                  <div className="flex gap-2.5">
+                    <Button 
                       onClick={toggleListening}
-                      className={`absolute right-1 top-1/2 -translate-y-1/2 rounded-full w-10 h-10 p-0 transition-all z-20 ${isListening ? "text-primary bg-primary/20 shadow-[0_0_15px_rgba(var(--primary),0.5)]" : "text-primary/70 hover:text-primary hover:bg-primary/10"}`}
+                      className={`w-16 h-16 rounded-2xl transition-all border border-border/50 ${isListening ? "bg-red-600 hover:bg-red-500 shadow-lg shadow-red-500/20" : "bg-secondary/50 hover:bg-secondary/80"}`}
                     >
-                      {isListening ? (
-                        <Mic className="w-6 h-6 animate-pulse" />
-                      ) : (
-                        <Mic className="w-6 h-6" />
-                      )}
+                      {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5 text-emerald-400" />}
+                    </Button>
+                    <Button 
+                      onClick={handleSend} 
+                      disabled={isLoading || isListening || !input.trim()}
+                      className="w-16 h-16 rounded-2xl bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-500/20"
+                    >
+                      <Send className="w-5 h-5" />
                     </Button>
                   </div>
-                  <Button size="icon" onClick={handleSend} disabled={isLoading || isListening}>
-                    <Send className="w-4 h-4" />
-                  </Button>
                 </div>
               </div>
             </Card>
@@ -290,17 +313,18 @@ export function AIChat() {
       </AnimatePresence>
 
       <motion.button
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
         onClick={() => setIsOpen(!isOpen)}
-        className="w-20 h-20 rounded-full bg-primary text-primary-foreground shadow-2xl flex items-center justify-center hover:bg-primary/90 transition-colors border-2 border-background"
+        className="relative group"
       >
-         {isOpen ? <X className="w-8 h-8" /> : (
-          <div className="relative">
-            <MessageCircle className="w-8 h-8" />
-            <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-background animate-pulse" />
-          </div>
-        )}
+        <div className="absolute -inset-4 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all duration-500" />
+        <div className="w-24 h-24 rounded-[40px] bg-gradient-to-br from-emerald-600 to-teal-800 text-white shadow-2xl flex items-center justify-center relative overflow-hidden border border-white/20">
+          <motion.div animate={{ rotate: isOpen ? 90 : 0, scale: isOpen ? 0.8 : 1 }} className="z-10">
+             {isOpen ? <X className="w-8 h-8" /> : <MessageCircle className="w-10 h-10 fill-current" />}
+          </motion.div>
+          <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent opacity-50" />
+        </div>
       </motion.button>
     </div>
   )

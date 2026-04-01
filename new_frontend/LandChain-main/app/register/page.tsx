@@ -7,9 +7,10 @@ import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Upload, FileText, ScanText, HardDrive, Loader2, CheckCircle } from "lucide-react"
+import { Card, CardContent } from "@/components/ui/card"
+import { Upload, FileText, HardDrive, Loader2, ShieldCheck, Sparkles } from "lucide-react"
 import { useWeb3 } from "@/context/Web3Context"
+import { motion } from "framer-motion"
 
 const BACKEND_URL = "http://localhost:5001"
 
@@ -19,14 +20,12 @@ interface ExtractedData {
   registryId: string
   address: string
   area: string
-  date: string
 }
 
 export default function RegisterPropertyPage() {
-  const { contract, isConnected, account } = useWeb3()
+  const { contract, isConnected } = useWeb3()
   const [file, setFile] = useState<File | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
-  const [isExtracted, setIsExtracted] = useState(false)
   const [isRegistering, setIsRegistering] = useState(false)
   const [isRegistered, setIsRegistered] = useState(false)
   const [ipfsHash, setIpfsHash] = useState("")
@@ -35,12 +34,18 @@ export default function RegisterPropertyPage() {
     plotNumber: "",
     registryId: "",
     address: "",
-    area: "",
-    date: ""
+    area: ""
   })
 
-  const runOCR = async (selectedFile: File) => {
+  // ───────────────────────── Logic ─────────────────────────
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0]
+    if (!selectedFile) return
+    
+    setFile(selectedFile)
     setIsProcessing(true)
+
     try {
       const formPayload = new FormData()
       formPayload.append("document", selectedFile)
@@ -56,34 +61,14 @@ export default function RegisterPropertyPage() {
           plotNumber: fields.plotNumber || "",
           registryId: fields.registryId || "",
           address: fields.address || "",
-          area: fields.area || "",
-          date: fields.date || ""
+          area: fields.area || ""
         })
-        setIsExtracted(true)
       }
     } catch (error) {
       console.error("OCR Error:", error)
-      alert("OCR processing failed. You can fill in the fields manually.")
-      setIsExtracted(true)
+      // We don't alert here to keep the "fill manually" fallback seamless
     } finally {
       setIsProcessing(false)
-    }
-  }
-
-  const handleFileDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    const droppedFile = e.dataTransfer.files[0]
-    if (droppedFile) {
-      setFile(droppedFile)
-      runOCR(droppedFile)
-    }
-  }
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0]
-    if (selectedFile) {
-      setFile(selectedFile)
-      runOCR(selectedFile)
     }
   }
 
@@ -91,14 +76,14 @@ export default function RegisterPropertyPage() {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!contract || !isConnected) {
       alert("Please connect your wallet first!")
       return
     }
     if (!file) {
-      alert("Please upload a document first!")
+      alert("Please upload the property deed document.")
       return
     }
 
@@ -115,17 +100,15 @@ export default function RegisterPropertyPage() {
 
       // Step 2: Register on blockchain
       const tx = await contract.registerProperty(
-        formData.registryId || "N/A",
+        formData.registryId,
         cid,
-        formData.ownerNames || "N/A",
-        formData.plotNumber || "N/A",
-        formData.area || "N/A",
-        formData.address || "N/A"
+        formData.ownerNames,
+        formData.plotNumber,
+        formData.area,
+        formData.address
       )
       await tx.wait()
-
       setIsRegistered(true)
-      alert("Property registered successfully on the blockchain!")
     } catch (error: any) {
       console.error("Registration error:", error)
       alert(`Registration failed: ${error.reason || error.message}`)
@@ -134,225 +117,152 @@ export default function RegisterPropertyPage() {
     }
   }
 
+  // ───────────────────────── Render Success ─────────────────────────
+
+  if (isRegistered) {
+    return (
+      <main className="min-h-screen bg-[#0f1513] text-white">
+        <Header />
+        <div className="pt-40 pb-20 px-4 flex items-center justify-center">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="max-w-md w-full">
+            <Card className="bg-card/50 border-border/50 backdrop-blur-sm rounded-[40px] p-8 text-center border overflow-hidden relative">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-teal-500" />
+              <div className="w-20 h-20 bg-secondary/50 rounded-full flex items-center justify-center mx-auto mb-6 border border-border">
+                <ShieldCheck className="w-10 h-10 text-emerald-400" />
+              </div>
+              <h2 className="text-3xl font-black mb-4">Registry Secured.</h2>
+              <p className="text-slate-400 mb-8 leading-relaxed">The property deed has been successfully hashed and anchored to the Ethereum Ledger.</p>
+              
+              <div className="p-4 rounded-2xl bg-secondary/50 border border-border/50 mb-8 space-y-2">
+                <div className="flex justify-between text-[10px] uppercase tracking-widest font-bold text-slate-500">
+                  <span>Deed CID</span>
+                  <span className="text-emerald-400 font-mono">{ipfsHash.slice(0, 12)}...</span>
+                </div>
+                <div className="flex justify-between text-[10px] uppercase tracking-widest font-bold text-slate-500">
+                  <span>Registry ID</span>
+                  <span className="text-emerald-400 font-mono">{formData.registryId}</span>
+                </div>
+              </div>
+
+              <Button onClick={() => window.location.reload()} className="w-full bg-emerald-600 hover:bg-emerald-500 rounded-2xl py-6 font-bold shadow-lg shadow-emerald-500/20">
+                Register Another
+              </Button>
+            </Card>
+          </motion.div>
+        </div>
+        <Footer />
+      </main>
+    )
+  }
+
+  // ───────────────────────── Main Render ─────────────────────────
+
   return (
-    <main className="min-h-screen bg-[#0f1513]">
+    <main className="min-h-screen bg-[#0f1513] text-white">
       <Header />
       
-      <section className="pt-32 pb-20">
+      <section className="pt-32 pb-20 relative overflow-hidden">
+        {/* Glow Background */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-emerald-500/5 rounded-full blur-[120px] -z-10" />
+
         <div className="mx-auto max-w-4xl px-4">
-          {/* Page Header */}
-          <div className="mb-12 text-center">
-            <h1 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
-              Register Property
-            </h1>
-            <p className="text-muted-foreground">
-              Upload your property documents and we&apos;ll extract the details automatically using AI-powered OCR.
-            </p>
+          <div className="text-center mb-12">
+            <h1 className="text-4xl md:text-5xl font-black mb-4 tracking-tight">Initiate <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-400">Property Registry.</span></h1>
+            <p className="text-slate-400 max-w-xl mx-auto leading-relaxed text-lg">Secure your property deed on-chain. Upload your document for automatic extraction or fill the details manually.</p>
           </div>
 
-          {!isConnected && (
-            <div className="mb-8 rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-center text-yellow-400">
-              Please connect your wallet to register a property.
-            </div>
-          )}
+          <form onSubmit={handleRegister} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            
+            {/* Left Column: Upload */}
+            <div className="lg:col-span-5 space-y-6">
+              <div className="relative group">
+                <div className="absolute -inset-1 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-[40px] blur opacity-10 group-hover:opacity-25 transition duration-1000"></div>
+                <div className={`relative p-8 rounded-[40px] bg-card/50 border-2 border-dashed ${file ? "border-emerald-500/40" : "border-border/50"} backdrop-blur-sm transition-all flex flex-col items-center justify-center min-h-[350px]`}>
+                  <input type="file" accept="image/*,.pdf" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                  
+                  {isProcessing ? (
+                    <div className="text-center">
+                      <Loader2 className="w-12 h-12 text-emerald-500 animate-spin mx-auto mb-4" />
+                      <h3 className="font-bold text-emerald-400">Scanning Deed...</h3>
+                    </div>
+                  ) : file ? (
+                    <div className="text-center">
+                      <div className="w-16 h-16 bg-secondary/50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-border">
+                        <FileText className="w-8 h-8 text-emerald-400" />
+                      </div>
+                      <p className="font-bold text-sm text-emerald-400 truncate max-w-[200px]">{file.name}</p>
+                      <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-widest font-bold">Document Loaded</p>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <div className="w-16 h-16 bg-secondary/50 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-border group-hover:border-emerald-500/30 transition-all shadow-inner">
+                        <Upload className="w-8 h-8 text-slate-400 group-hover:text-emerald-400 transition-all" />
+                      </div>
+                      <h3 className="font-bold mb-1">Upload Deed</h3>
+                      <p className="text-xs text-slate-500">PDF, PNG or JPG (Max 10MB)</p>
+                    </div>
+                  )}
+                </div>
+              </div>
 
-          {isRegistered ? (
-            <Card className="border-green-500/30 bg-green-500/10 backdrop-blur-sm">
-              <CardContent className="py-12 text-center">
-                <CheckCircle className="mx-auto mb-4 h-16 w-16 text-green-500" />
-                <h2 className="text-2xl font-bold text-green-400">Property Registered!</h2>
-                <p className="mt-2 text-muted-foreground">Your property has been recorded on the blockchain.</p>
-                <p className="mt-2 font-mono text-xs text-muted-foreground">IPFS CID: {ipfsHash}</p>
-                <Button className="mt-6 rounded-xl" onClick={() => { setIsRegistered(false); setFile(null); setIsExtracted(false); setFormData({ ownerNames: "", plotNumber: "", registryId: "", address: "", area: "", date: "" }) }}>
-                  Register Another Property
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-8 lg:grid-cols-2">
-              {/* Upload Section */}
-              <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Upload className="h-5 w-5" />
-                    Upload Document
-                  </CardTitle>
-                  <CardDescription>
-                    Drag and drop or click to upload your property deed (PDF or Image)
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={handleFileDrop}
-                    className="relative flex min-h-[200px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-secondary/30 p-8 transition-colors hover:border-muted-foreground/50 hover:bg-secondary/50"
+              <div className="p-6 rounded-3xl bg-secondary/30 border border-border/50 flex gap-4 backdrop-blur-sm">
+                <Sparkles className="w-5 h-5 text-emerald-400 shrink-0" />
+                <p className="text-[11px] text-slate-400 leading-relaxed font-medium">
+                  Our system uses OCR to auto-fill the form. Please verify the extracted data before securing the registry.
+                </p>
+              </div>
+            </div>
+
+            {/* Right Column: Form Fields */}
+            <div className="lg:col-span-7">
+              <Card className="bg-card/50 border-border/50 backdrop-blur-sm rounded-[40px] p-8 border">
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] uppercase font-black text-slate-500 tracking-[0.2em] ml-1">Registry ID</Label>
+                      <Input value={formData.registryId} onChange={(e) => handleInputChange("registryId", e.target.value)} className="bg-secondary/50 border-border/50 rounded-2xl py-6 focus:border-emerald-500/50 transition-all font-mono" placeholder="e.g. DEED-8829" required />
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-[10px] uppercase font-black text-slate-500 tracking-[0.2em] ml-1">Plot Number</Label>
+                        <Input value={formData.plotNumber} onChange={(e) => handleInputChange("plotNumber", e.target.value)} className="bg-secondary/50 border-border/50 rounded-2xl py-6 focus:border-emerald-500/50 transition-all font-mono" placeholder="e.g. 402/B" required />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-[10px] uppercase font-black text-slate-500 tracking-[0.2em] ml-1">Full Name of Owner(s)</Label>
+                    <Input value={formData.ownerNames} onChange={(e) => handleInputChange("ownerNames", e.target.value)} className="bg-secondary/50 border-border/50 rounded-2xl py-6 focus:border-emerald-500/50 transition-all" placeholder="John Doe" required />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-[10px] uppercase font-black text-slate-500 tracking-[0.2em] ml-1">Property Address</Label>
+                    <Input value={formData.address} onChange={(e) => handleInputChange("address", e.target.value)} className="bg-secondary/50 border-border/50 rounded-2xl py-6 focus:border-emerald-500/50 transition-all font-mono" placeholder="123 Emerald Street, Green City" required />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-[10px] uppercase font-black text-slate-500 tracking-[0.2em] ml-1">Total Area</Label>
+                    <Input value={formData.area} onChange={(e) => handleInputChange("area", e.target.value)} className="bg-secondary/50 border-border/50 rounded-2xl py-6 focus:border-emerald-500/50 transition-all font-mono" placeholder="e.g. 1500 sq ft" required />
+                  </div>
+
+                  <Button 
+                    type="submit" 
+                    disabled={isRegistering || !isConnected}
+                    className="w-full mt-4 bg-emerald-600 hover:bg-emerald-500 rounded-2xl py-8 text-lg font-black tracking-tight transition-all shadow-[0_0_50px_rgba(16,185,129,0.1)] hover:shadow-[0_0_50px_rgba(16,185,129,0.2)]"
                   >
-                    <input
-                      type="file"
-                      accept=".pdf,.png,.jpg,.jpeg"
-                      onChange={handleFileChange}
-                      className="absolute inset-0 cursor-pointer opacity-0"
-                    />
-                    
-                    {isProcessing ? (
-                      <div className="flex flex-col items-center gap-4">
-                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary">
-                          <Loader2 className="h-8 w-8 animate-spin" />
-                        </div>
-                        <div className="text-center">
-                          <p className="font-medium">Processing Document...</p>
-                          <p className="text-sm text-muted-foreground">Extracting property details with OCR</p>
-                        </div>
-                      </div>
-                    ) : file ? (
-                      <div className="flex flex-col items-center gap-4">
-                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary">
-                          <FileText className="h-8 w-8" />
-                        </div>
-                        <div className="text-center">
-                          <p className="font-medium">{file.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {(file.size / 1024 / 1024).toFixed(2)} MB
-                          </p>
-                        </div>
-                      </div>
+                    {isRegistering ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin mr-3" /> Securing Registry...
+                      </>
                     ) : (
-                      <div className="flex flex-col items-center gap-4">
-                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary">
-                          <Upload className="h-8 w-8" />
-                        </div>
-                        <div className="text-center">
-                          <p className="font-medium">Drop files here or click to upload</p>
-                          <p className="text-sm text-muted-foreground">PDF, PNG, JPG up to 10MB</p>
-                        </div>
-                      </div>
+                      <>
+                        Anchor to Blockchain <HardDrive className="w-5 h-5 ml-3" />
+                      </>
                     )}
-                  </div>
-
-                  {/* Process Steps */}
-                  <div className="mt-6 grid grid-cols-3 gap-4">
-                    <div className={`flex flex-col items-center rounded-lg p-3 text-center ${file ? "bg-secondary" : "bg-secondary/30"}`}>
-                      <ScanText className="mb-2 h-5 w-5" />
-                      <span className="text-xs">OCR Extract</span>
-                    </div>
-                    <div className={`flex flex-col items-center rounded-lg p-3 text-center ${isExtracted ? "bg-secondary" : "bg-secondary/30"}`}>
-                      <CheckCircle className="mb-2 h-5 w-5" />
-                      <span className="text-xs">Verify Data</span>
-                    </div>
-                    <div className={`flex flex-col items-center rounded-lg p-3 text-center ${isRegistered ? "bg-secondary" : "bg-secondary/30"}`}>
-                      <HardDrive className="mb-2 h-5 w-5" />
-                      <span className="text-xs">Store on IPFS</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Form Section */}
-              <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    Property Details
-                  </CardTitle>
-                  <CardDescription>
-                    {isExtracted 
-                      ? "Review and edit the extracted information below"
-                      : "Details will be auto-filled after OCR processing"
-                    }
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="ownerNames">Owner Name(s)</Label>
-                      <Input
-                        id="ownerNames"
-                        value={formData.ownerNames}
-                        onChange={(e) => handleInputChange("ownerNames", e.target.value)}
-                        placeholder="Enter owner name(s), separated by commas"
-                        className="rounded-lg bg-secondary/50"
-                      />
-                    </div>
-
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="plotNumber">Plot Number</Label>
-                        <Input
-                          id="plotNumber"
-                          value={formData.plotNumber}
-                          onChange={(e) => handleInputChange("plotNumber", e.target.value)}
-                          placeholder="PLT-XXXX-XXXXX"
-                          className="rounded-lg bg-secondary/50"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="registryId">Registry ID</Label>
-                        <Input
-                          id="registryId"
-                          value={formData.registryId}
-                          onChange={(e) => handleInputChange("registryId", e.target.value)}
-                          placeholder="REG-XXX-XXXXXX"
-                          className="rounded-lg bg-secondary/50"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="address">Property Address</Label>
-                      <Input
-                        id="address"
-                        value={formData.address}
-                        onChange={(e) => handleInputChange("address", e.target.value)}
-                        placeholder="Enter full address"
-                        className="rounded-lg bg-secondary/50"
-                      />
-                    </div>
-
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="area">Area</Label>
-                        <Input
-                          id="area"
-                          value={formData.area}
-                          onChange={(e) => handleInputChange("area", e.target.value)}
-                          placeholder="e.g., 2,500 sq ft"
-                          className="rounded-lg bg-secondary/50"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="date">Registration Date</Label>
-                        <Input
-                          id="date"
-                          type="date"
-                          value={formData.date}
-                          onChange={(e) => handleInputChange("date", e.target.value)}
-                          className="rounded-lg bg-secondary/50"
-                        />
-                      </div>
-                    </div>
-
-                    <Button 
-                      type="submit" 
-                      className="w-full gap-2 rounded-xl"
-                      disabled={!isExtracted || !isConnected || isRegistering}
-                    >
-                      {isRegistering ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Registering on Blockchain...
-                        </>
-                      ) : (
-                        <>
-                          <HardDrive className="h-4 w-4" />
-                          Upload to IPFS & Register
-                        </>
-                      )}
-                    </Button>
-                  </form>
-                </CardContent>
+                  </Button>
+                </div>
               </Card>
             </div>
-          )}
+
+          </form>
         </div>
       </section>
 

@@ -6,6 +6,7 @@ require("dotenv").config();
 const ocrRoutes = require("./routes/ocr");
 const ipfsRoutes = require("./routes/ipfs");
 const aiRoutes = require("./routes/ai");
+const marketRoutes = require("./routes/market");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -26,6 +27,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/api/ocr", ocrRoutes);
 app.use("/api/ipfs", ipfsRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api/market", marketRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {
@@ -54,7 +56,7 @@ app.listen(PORT, () => {
   console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
   console.log(`  🏠 Real Estate Backend Server`);
   console.log(`  📡 Running on http://localhost:${PORT}`);
-  console.log(`  📄 OCR Engine : Tesseract.js`);
+  console.log(`  📄 OCR Engine : Google Gemini AI`);
   console.log(`  📦 IPFS       : ${process.env.PINATA_JWT ? "Pinata" : "Mock Mode"}`);
   console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
 });
