@@ -56,7 +56,7 @@ app.listen(PORT, () => {
   console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
   console.log(`  🏠 Real Estate Backend Server`);
   console.log(`  📡 Running on http://localhost:${PORT}`);
-  console.log(`  📄 OCR Engine : Google Gemini AI`);
+  console.log(`  📄 OCR Engine : Tesseract.js (Local)`);
   console.log(`  📦 IPFS       : ${process.env.PINATA_JWT ? "Pinata" : "Mock Mode"}`);
   console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
 });

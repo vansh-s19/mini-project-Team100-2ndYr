@@ -25,6 +25,9 @@ interface Property {
   type: string
   furnish_status: string
   bedrooms: number
+  actual_price: number
+  predicted_price: number
+  profit_margin: number
 }
 
 export default function PropertyMap({ properties }: { properties: Property[] }) {
@@ -48,6 +51,7 @@ export default function PropertyMap({ properties }: { properties: Property[] }) 
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          detectRetina={true}
         />
         
         {properties.map((prop, idx) => (
@@ -65,12 +69,24 @@ export default function PropertyMap({ properties }: { properties: Property[] }) 
                   </div>
                 </div>
 
-                {/* Price Display */}
+                {/* Price Display: Side-by-Side Comparison */}
                 <div className="mb-5 p-4 rounded-2xl bg-secondary/30 border border-border/50 group-hover:border-emerald-500/20 transition-all">
-                   <p className="text-[9px] text-slate-500 uppercase font-black tracking-[0.2em] mb-1">Market Cap Estimation</p>
-                   <div className="flex items-baseline gap-1">
-                      <span className="text-3xl font-black text-emerald-400">₹{(prop.area * 5000 / 100000).toFixed(1)}</span>
-                      <span className="text-sm font-bold text-emerald-400/80">L*</span>
+                   <div className="flex justify-between items-end mb-2">
+                      <div>
+                        <p className="text-[8px] text-slate-500 uppercase font-black tracking-widest mb-1">Actual Price</p>
+                        <span className="text-xl font-black text-emerald-400">₹{prop.actual_price}L</span>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[8px] text-slate-500 uppercase font-black tracking-widest mb-1">Predicted</p>
+                        <span className="text-sm font-bold text-slate-300">₹{prop.predicted_price}L</span>
+                      </div>
+                   </div>
+                   
+                   <div className="pt-2 border-t border-border/30 flex justify-between items-center">
+                      <span className="text-[8px] text-slate-500 uppercase font-black tracking-widest">AI Margin Analysis</span>
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg ${prop.profit_margin >= 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                        {prop.profit_margin >= 0 ? '+' : ''}{prop.profit_margin}%
+                      </span>
                    </div>
                 </div>
 

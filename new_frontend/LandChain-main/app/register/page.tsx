@@ -88,17 +88,32 @@ export default function RegisterPropertyPage() {
     }
 
     setIsRegistering(true)
+    console.log("🚀 Starting Registration Flow...")
     try {
       // Step 1: Upload to IPFS
+      console.log("  → Step 1: Uploading Deed to IPFS via Backend...");
       const ipfsPayload = new FormData()
       ipfsPayload.append("document", file)
+      
       const ipfsResponse = await axios.post(`${BACKEND_URL}/api/ipfs/upload`, ipfsPayload, {
         headers: { "Content-Type": "multipart/form-data" }
       })
+      
       const cid = ipfsResponse.data.cid
+      console.log(`  ✅ IPFS Success! CID: ${cid}`);
       setIpfsHash(cid)
 
       // Step 2: Register on blockchain
+      console.log("  → Step 2: Initiating Blockchain Transaction...");
+      console.log("    Params:", {
+        regId: formData.registryId,
+        cid: cid,
+        owner: formData.ownerNames,
+        plot: formData.plotNumber,
+        area: formData.area,
+        addr: formData.address
+      });
+
       const tx = await contract.registerProperty(
         formData.registryId,
         cid,
@@ -107,11 +122,27 @@ export default function RegisterPropertyPage() {
         formData.area,
         formData.address
       )
-      await tx.wait()
+      
+      console.log("  ⏳ Transaction Sent! Hash:", tx.hash);
+      console.log("  → Step 3: Waiting for Block Confirmation...");
+      
+      const receipt = await tx.wait()
+      console.log("  ✅ Transaction Confirmed!", receipt);
+      
       setIsRegistered(true)
     } catch (error: any) {
-      console.error("Registration error:", error)
-      alert(`Registration failed: ${error.reason || error.message}`)
+      console.error("❌ Registration error:", error)
+      
+      let errorMsg = "Registration failed."
+      if (error.code === 4001 || error.message?.includes("user rejected")) {
+        errorMsg = "Transaction was rejected in MetaMask."
+      } else if (error.reason) {
+        errorMsg = `Contract Reverted: ${error.reason}`
+      } else if (error.message) {
+        errorMsg = error.message
+      }
+      
+      alert(errorMsg)
     } finally {
       setIsRegistering(false)
     }

@@ -97,7 +97,7 @@ export default function MapsPage() {
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
           >
-             <div className="absolute inset-0 bg-[#0f1513]/20 backdrop-blur-[2px] z-10 pointer-events-none" />
+             <div className="absolute inset-0 bg-[#0f1513]/5 z-10 pointer-events-none" />
             <PropertyMap properties={filteredProps} />
           </motion.div>
 
@@ -127,7 +127,13 @@ export default function MapsPage() {
                          <h4 className="text-sm font-black truncate max-w-[120px] text-slate-100 group-hover:text-emerald-400 transition-colors uppercase tracking-tight">{p.name || `Property #${i}`}</h4>
                          <p className="text-[9px] text-slate-500 uppercase font-black tracking-widest">{p.city}</p>
                        </div>
-                       <span className="text-[11px] text-emerald-400 font-black bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20">₹{(p.area * 5000 / 100000).toFixed(1)}L*</span>
+                        <div className="text-right">
+                          <span className="text-[11px] text-emerald-400 font-black bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20">₹{p.actual_price}L</span>
+                          <div className="mt-1 flex items-center gap-1 justify-end">
+                            <span className="text-[8px] text-slate-500 uppercase font-bold">AI:</span>
+                            <span className="text-[9px] font-black text-slate-300">₹{p.predicted_price}L</span>
+                          </div>
+                        </div>
                     </div>
                     
                     <div className="grid grid-cols-2 gap-2 mb-4">
@@ -138,6 +144,11 @@ export default function MapsPage() {
                       <div className="flex items-center gap-2 px-2 py-1.5 rounded-xl bg-secondary/50 border border-border">
                         <Home className="w-3 h-3 text-slate-500" />
                         <span className="text-[10px] font-bold text-slate-400 font-mono">{p.bedrooms} BHK</span>
+                      </div>
+                      <div className="flex items-center justify-center gap-2 px-2 py-1.5 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
+                        <span className={`text-[9px] font-black ${p.profit_margin >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {p.profit_margin >= 0 ? '▲' : '▼'} {Math.abs(p.profit_margin)}% Yield
+                        </span>
                       </div>
                     </div>
 

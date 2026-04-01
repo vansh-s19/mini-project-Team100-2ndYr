@@ -40,6 +40,13 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
       const accounts = await prov.send("eth_requestAccounts", [])
       const sign = prov.getSigner()
       const network = await prov.getNetwork()
+      
+      // Target Hardhat Localhost (ChainID: 31337)
+      const TARGET_CHAIN_ID = 31337
+      if (network.chainId !== TARGET_CHAIN_ID && network.chainId !== 1337) {
+        console.warn(`⚠️ Network Mismatch! Expected: ${TARGET_CHAIN_ID}, Got: ${network.chainId}`);
+        alert(`Warning: You are connected to ChainID ${network.chainId}. The Land Registry contract is typically deployed on Localhost (31337). Transactions may fail.`);
+      }
 
       const landRegistry = new ethers.Contract(
         ContractAddress.LandRegistry,
@@ -52,6 +59,7 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
       setAccount(accounts[0])
       setChainId(network.chainId)
       setContract(landRegistry)
+      console.log(`✅ Connected: ${accounts[0]} on Chain ${network.chainId}`);
     } catch (error) {
       console.error("Wallet connection error:", error)
       alert("Failed to connect wallet")

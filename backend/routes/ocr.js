@@ -117,5 +117,3 @@ router.post("/extract", upload.single("document"), async (req, res) => {
 });
 
 module.exports = router;
-
-module.exports = router;
