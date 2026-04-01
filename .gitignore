@@ -6,6 +6,7 @@ node_modules/
 # Environment Variables
 .env
 .env.local
+/backend/.env
 
 # Hardhat
 cache/
