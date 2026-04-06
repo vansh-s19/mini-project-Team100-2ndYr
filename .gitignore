@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # v0 sandbox internal files
 __v0_runtime_loader.js
 __v0_devtools.tsx
@@ -14,3 +15,11 @@ next.user-config.*
 node_modules
 .next/
 .DS_Store
+=======
+/target
+.DS_Store
+models/*.pkl
+models/*.pkl
+models/*.pkl
+models/*.pkl
+>>>>>>> ffa72de244e48189fa509ee56fc6e219a74d4d98
