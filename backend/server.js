@@ -3,13 +3,21 @@ const cors = require("cors");
 const path = require("path");
 require("dotenv").config();
 
+const mongoose = require("mongoose");
+const passport = require("./config/passport");
 const ocrRoutes = require("./routes/ocr");
 const ipfsRoutes = require("./routes/ipfs");
 const aiRoutes = require("./routes/ai");
 const marketRoutes = require("./routes/market");
+const authRoutes = require("./routes/auth");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// ───────────────────────── Database Connection ─────────────────────────
+mongoose.connect(process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/landchain")
+  .then(() => console.log("🍃 MongoDB Connected Successfully"))
+  .catch(err => console.error("❌ MongoDB Connection Error:", err));
 
 // ───────────────────────── Middleware ─────────────────────────
 app.use(cors({
@@ -19,6 +27,7 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(passport.initialize());
 
 // Serve uploaded files statically (for preview)
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
@@ -28,6 +37,7 @@ app.use("/api/ocr", ocrRoutes);
 app.use("/api/ipfs", ipfsRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/market", marketRoutes);
+app.use("/api/auth", authRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {

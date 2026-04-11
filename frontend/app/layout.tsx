@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { Web3Provider } from '@/context/Web3Context'
+import { AuthProvider } from '@/context/AuthContext'
 import { AIChat } from '@/components/AIChat'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -37,10 +38,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="font-sans antialiased">
-        <Web3Provider>
-          {children}
-          <AIChat />
-        </Web3Provider>
+        <AuthProvider>
+          <Web3Provider>
+            {children}
+            <AIChat />
+          </Web3Provider>
+        </AuthProvider>
       </body>
     </html>
   )

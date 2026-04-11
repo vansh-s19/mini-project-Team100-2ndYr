@@ -8,6 +8,8 @@ import { Menu, Wallet, LogOut } from "lucide-react"
 import ElectricBorder from "@/components/ElectricBorder"
 import BorderGlow from "@/components/BorderGlow"
 import { useWeb3 } from "@/context/Web3Context"
+import { useAuth } from "@/context/AuthContext"
+import { User as UserIcon } from "lucide-react"
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -23,6 +25,7 @@ const navLinks = [
 export function Header() {
   const [isOpen, setIsOpen] = useState(false)
   const { account, isConnected, isConnecting, connectWallet, disconnectWallet } = useWeb3()
+  const { user, isAuthenticated, logout } = useAuth()
 
   const truncatedAddress = account
     ? `${account.slice(0, 6)}...${account.slice(-4)}`
@@ -65,8 +68,26 @@ export function Header() {
             ))}
           </div>
 
-          {/* Wallet Connect */}
+          {/* Auth & Wallet Connect */}
           <div className="hidden items-center gap-3 lg:flex">
+            {isAuthenticated ? (
+              <div className="flex items-center gap-2 mr-2">
+                <div className="flex items-center gap-2 rounded-xl border border-border bg-emerald-500/10 px-4 py-2">
+                  <UserIcon className="h-4 w-4 text-emerald-400" />
+                  <span className="text-sm font-medium text-emerald-400">{user?.name}</span>
+                </div>
+                <Button variant="ghost" size="icon" onClick={logout} className="rounded-lg h-9 w-9">
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <Link href="/auth">
+                <Button variant="ghost" className="rounded-xl font-bold">Log In</Button>
+              </Link>
+            )}
+
+            <div className="w-[1px] h-6 bg-border mx-1" />
+            
             {isConnected ? (
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-2 rounded-xl border border-border bg-secondary px-4 py-2">
