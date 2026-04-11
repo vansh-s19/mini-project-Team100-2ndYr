@@ -10,6 +10,7 @@ const ipfsRoutes = require("./routes/ipfs");
 const aiRoutes = require("./routes/ai");
 const marketRoutes = require("./routes/market");
 const authRoutes = require("./routes/auth");
+const propertyRoutes = require("./routes/property");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -38,6 +39,7 @@ app.use("/api/ipfs", ipfsRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/market", marketRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/property", propertyRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {
