@@ -8,11 +8,11 @@ A decentralized property registry and transfer platform built on Ethereum. Featu
 |-------|-----------|
 | **Smart Contract** | Solidity 0.8.19 |
 | **Blockchain** | Hardhat (local) |
-| **Frontend** | React + Vite + TailwindCSS |
+| **Frontend** | Next.js 16 (Turbopack) |
 | **Backend** | Node.js + Express |
 | **OCR** | Tesseract.js |
 | **Storage** | IPFS (Pinata) |
-| **Wallet** | MetaMask + ethers.js v5 |
+| **Wallet** | MetaMask + ethers.js v6 |
 
 ## 🚀 Quick Start
 
@@ -42,13 +42,14 @@ npm run deploy
 ```bash
 npm run backend
 ```
+*Note: Runs on port 5001 to avoid conflicts.*
 
 ### 5. Start Frontend
 ```bash
 npm run frontend
 ```
 
-Open http://localhost:5173
+Open http://localhost:3000
 
 ### 6. Configure MetaMask
 1. Add network: **Hardhat Local** (RPC: `http://127.0.0.1:8545`, Chain ID: `31337`)
@@ -70,17 +71,13 @@ Open http://localhost:5173
 │   └── LandRegistry.sol
 ├── scripts/             # Deployment scripts
 │   └── deploy.js
-├── backend/             # Express API server
+├── backend/             # Express API server (Port 5001)
 │   ├── server.js
 │   └── routes/
-│       ├── ocr.js       # Tesseract OCR processing
-│       └── ipfs.js      # IPFS/Pinata uploads
-├── frontend/            # React application
-│   └── src/
-│       ├── components/  # Reusable UI components
-│       ├── pages/       # 6 application pages
-│       ├── context/     # Web3 wallet context
-│       └── contracts/   # ABI & contract address
+├── frontend/            # Next.js application (Port 3000)
+│   ├── app/
+│   ├── components/
+│   └── lib/
 ├── hardhat.config.js
 └── package.json
 ```
