@@ -1,8 +1,8 @@
 {
   "_format": "hh-sol-cache-2",
   "files": {
-    "/Users/harshchaudhary/Desktop/sans/website/contracts/LandRegistry.sol": {
-      "lastModificationDate": 1774956022010,
+    "/Users/harshchaudhary/Desktop/LANDCHAIN/Blockchain-Based-Real-Estate-Handling/contracts/LandRegistry.sol": {
+      "lastModificationDate": 1775899365471,
       "contentHash": "5da7505eee7f342e618bb658bbd40f1a",
       "sourceName": "contracts/LandRegistry.sol",
       "solcConfig": {
