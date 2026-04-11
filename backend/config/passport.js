@@ -15,6 +15,7 @@ passport.deserializeUser(async (id, done) => {
   }
 });
 
+console.log("Initializing Google Strategy with ID:", process.env.GOOGLE_CLIENT_ID);
 passport.use(
   new GoogleStrategy(
     {
@@ -23,6 +24,7 @@ passport.use(
       callbackURL: "/api/auth/google/callback",
     },
     async (accessToken, refreshToken, profile, done) => {
+      console.log("Using Google Client ID:", process.env.GOOGLE_CLIENT_ID);
       try {
         // Check if user already exists
         let user = await User.findOne({ googleId: profile.id });

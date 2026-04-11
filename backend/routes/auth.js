@@ -19,14 +19,19 @@ const generateToken = (user) => {
 // @route   POST /api/auth/register
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, role } = req.body;
 
     let user = await User.findOne({ email });
     if (user) {
       return res.status(400).json({ error: "User already exists" });
     }
 
-    user = await User.create({ name, email, password });
+    user = await User.create({
+      name,
+      email,
+      password,
+      role: role === "authority" ? "authority" : "user"
+    });
     const token = generateToken(user);
 
     res.status(201).json({
@@ -79,9 +84,43 @@ router.get("/me", async (req, res) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || "SUPER_SECRET_KEY");
     const user = await User.findById(decoded.id).select("-password");
-    
+
     if (!user) return res.status(404).json({ error: "User not found" });
-    
+
+    res.json({ success: true, user });
+  } catch (err) {
+    res.status(401).json({ error: "Token is not valid" });
+  }
+});
+
+// @route   PUT /api/auth/profile
+router.put("/profile", async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return res.status(401).json({ error: "No token, authorization denied" });
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "SUPER_SECRET_KEY");
+
+    const allowedUpdates = [
+      "name", "phone", "pan", "aadhar", "address",
+      "city", "state", "pincode", "occupation"
+    ];
+
+    const updates = {};
+    Object.keys(req.body).forEach(key => {
+      if (allowedUpdates.includes(key)) {
+        updates[key] = req.body[key];
+      }
+    });
+
+    const user = await User.findByIdAndUpdate(
+      decoded.id,
+      { $set: updates },
+      { new: true, runValidators: true }
+    ).select("-password");
+
+    if (!user) return res.status(404).json({ error: "User not found" });
+
     res.json({ success: true, user });
   } catch (err) {
     res.status(401).json({ error: "Token is not valid" });
@@ -101,7 +140,7 @@ router.get(
     // Successful authentication, generate token and redirect to frontend
     const token = generateToken(req.user);
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-    
+
     // In a real app, you might use a cookie or a secure redirect with the token
     res.redirect(`${frontendUrl}/auth/callback?token=${token}`);
   }

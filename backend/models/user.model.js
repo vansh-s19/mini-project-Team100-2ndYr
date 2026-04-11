@@ -37,6 +37,15 @@ const userSchema = new mongoose.Schema({
     sparse: true,
     lowercase: true,
   },
+  // Profile & KYC Details
+  phone: { type: String, trim: true },
+  pan: { type: String, trim: true },
+  aadhar: { type: String, trim: true },
+  address: { type: String },
+  city: { type: String },
+  state: { type: String },
+  pincode: { type: String },
+  occupation: { type: String },
   createdAt: {
     type: Date,
     default: Date.now,

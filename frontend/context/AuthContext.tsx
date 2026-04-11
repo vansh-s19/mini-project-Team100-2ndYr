@@ -17,7 +17,8 @@ interface AuthContextType {
   isAuthenticated: boolean
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
-  register: (name: string, email: string, password: string) => Promise<void>
+  register: (name: string, email: string, password: string, role: string) => Promise<void>
+  updateProfile: (data: Partial<User>) => Promise<void>
   logout: () => void
   googleLogin: () => void
 }
@@ -69,13 +70,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const register = async (name: string, email: string, password: string) => {
+  const register = async (name: string, email: string, password: string, role: string) => {
     setIsLoading(true)
     try {
       const res = await fetch(`${API_URL}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, role }),
       })
 
       const data = await res.json()
@@ -87,6 +88,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem("user", JSON.stringify(data.user))
       
       router.push("/")
+    } catch (err: any) {
+      throw err
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const updateProfile = async (profileData: Partial<User>) => {
+    if (!token) return
+    setIsLoading(true)
+    try {
+      const res = await fetch(`${API_URL}/auth/profile`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(profileData),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Update failed")
+
+      setUser(data.user)
+      localStorage.setItem("user", JSON.stringify(data.user))
     } catch (err: any) {
       throw err
     } finally {
@@ -113,6 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoading,
     login,
     register,
+    updateProfile,
     logout,
     googleLogin,
   }

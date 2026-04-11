@@ -1,5 +1,6 @@
 # 🏠 LandChain — Blockchain-Based Real Estate Property Registry
-
+admin@landchain.gov.in
+LandChainAdmin2026
 A decentralized property registry and transfer platform built on Ethereum. Features AI-powered OCR document extraction, IPFS document storage, and tamper-proof blockchain records.
 
 ## ⚡ Tech Stack

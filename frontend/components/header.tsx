@@ -12,14 +12,12 @@ import { useAuth } from "@/context/AuthContext"
 import { User as UserIcon } from "lucide-react"
 
 const navLinks = [
-  { href: "/", label: "Home" },
-  { href: "/register", label: "Register" },
   { href: "/properties", label: "My Properties" },
   { href: "/market", label: "Market" },
   { href: "/maps", label: "Maps" },
   { href: "/transfer", label: "Transfer" },
   { href: "/verify", label: "Verify" },
-  { href: "/authority", label: "Authority" },
+  { href: "/profile", label: "Profile" },
 ]
 
 export function Header() {
@@ -45,7 +43,14 @@ export function Header() {
 
           {/* Desktop Navigation */}
           <div className="hidden items-center gap-1 lg:flex">
-            {navLinks.map((link) => (
+            {navLinks
+              .filter(link => {
+                if (user?.role === "authority") {
+                  return !["/properties", "/market", "/transfer"].includes(link.href)
+                }
+                return true
+              })
+              .map((link) => (
               <BorderGlow
                 key={link.href}
                 edgeSensitivity={20}
@@ -66,16 +71,37 @@ export function Header() {
                 </Link>
               </BorderGlow>
             ))}
+            {user?.role === "authority" && (
+              <BorderGlow
+                edgeSensitivity={20}
+                glowColor="40 80 80"
+                backgroundColor="transparent"
+                borderRadius={8}
+                glowRadius={20}
+                glowIntensity={1}
+                coneSpread={25}
+                animated={false}
+                colors={['#10b981', '#14b8a6', '#4ade80']}
+              >
+                <Link
+                  href="/authority"
+                  className="rounded-lg px-4 py-2 text-sm font-bold text-emerald-400 transition-colors hover:bg-white/10 block w-full text-center"
+                >
+                  Authority
+                </Link>
+              </BorderGlow>
+            )}
           </div>
 
-          {/* Auth & Wallet Connect */}
           <div className="hidden items-center gap-3 lg:flex">
             {isAuthenticated ? (
               <div className="flex items-center gap-2 mr-2">
-                <div className="flex items-center gap-2 rounded-xl border border-border bg-emerald-500/10 px-4 py-2">
-                  <UserIcon className="h-4 w-4 text-emerald-400" />
-                  <span className="text-sm font-medium text-emerald-400">{user?.name}</span>
-                </div>
+                <Link href="/profile">
+                  <div className="flex items-center gap-2 rounded-xl border border-border bg-emerald-500/10 px-4 py-2 hover:bg-emerald-500/20 transition-colors">
+                    <UserIcon className="h-4 w-4 text-emerald-400" />
+                    <span className="text-sm font-medium text-emerald-400">{user?.name}</span>
+                  </div>
+                </Link>
                 <Button variant="ghost" size="icon" onClick={logout} className="rounded-lg h-9 w-9">
                   <LogOut className="h-4 w-4" />
                 </Button>
@@ -124,7 +150,14 @@ export function Header() {
             <SheetContent side="right" className="w-80 border-border bg-background/95 backdrop-blur-xl">
               <div className="flex flex-col gap-6 pt-8">
                 <div className="flex flex-col gap-2">
-                  {navLinks.map((link) => (
+                  {navLinks
+                    .filter(link => {
+                      if (user?.role === "authority") {
+                        return !["/properties", "/market", "/transfer"].includes(link.href)
+                      }
+                      return true
+                    })
+                    .map((link) => (
                     <BorderGlow
                       key={link.href}
                       edgeSensitivity={20}
@@ -146,6 +179,27 @@ export function Header() {
                       </Link>
                     </BorderGlow>
                   ))}
+                  {user?.role === "authority" && (
+                    <BorderGlow
+                      edgeSensitivity={20}
+                      glowColor="40 80 80"
+                      backgroundColor="transparent"
+                      borderRadius={12}
+                      glowRadius={20}
+                      glowIntensity={1}
+                      coneSpread={25}
+                      animated={false}
+                      colors={['#10b981', '#14b8a6', '#4ade80']}
+                    >
+                      <Link
+                        href="/authority"
+                        onClick={() => setIsOpen(false)}
+                        className="rounded-xl px-4 py-3 text-lg font-bold text-emerald-400 transition-colors hover:bg-white/10 block w-full"
+                      >
+                        Authority Dashboard
+                      </Link>
+                    </BorderGlow>
+                  )}
                 </div>
                 <div className="border-t border-border pt-6">
                   {isConnected ? (

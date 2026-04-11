@@ -13,6 +13,7 @@ export default function AuthPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [name, setName] = useState("")
+  const [role, setRole] = useState("user")
   const [error, setError] = useState("")
   const { login, register, googleLogin, isLoading } = useAuth()
 
@@ -23,7 +24,7 @@ export default function AuthPage() {
       if (isLogin) {
         await login(email, password)
       } else {
-        await register(name, email, password)
+        await register(name, email, password, role)
       }
     } catch (err: any) {
       setError(err.message)
@@ -56,13 +57,35 @@ export default function AuthPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <AnimatePresence mode="wait">
-              {!isLogin && (
+            {!isLogin && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="space-y-2"
+                  className="space-y-4 mb-4"
                 >
+                  {/* Role Selector */}
+                  <div className="flex bg-slate-900/50 p-1 rounded-xl border border-white/10">
+                    <button
+                      type="button"
+                      onClick={() => setRole("user")}
+                      className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                        role === "user" ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20" : "text-slate-500 hover:text-white"
+                      }`}
+                    >
+                      Citizen / User
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRole("authority")}
+                      className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                        role === "authority" ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20" : "text-slate-500 hover:text-white"
+                      }`}
+                    >
+                      Gov Authority
+                    </button>
+                  </div>
+
                   <div className="relative group">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
                     <Input
