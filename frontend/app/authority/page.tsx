@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge"
 import { useWeb3 } from "@/context/Web3Context"
 import { useAuth } from "@/context/AuthContext"
 import { toast } from "sonner"
+import { PropertyDetailsModal } from "@/components/PropertyDetailsModal"
 
 interface Property {
   id: number
@@ -45,6 +46,10 @@ export default function AuthorityDashboard() {
   const [searchQuery, setSearchQuery] = useState("")
   const [filter, setFilter] = useState<"pending" | "verified" | "rejected" | "all">("pending")
   const [isAuthority, setIsAuthority] = useState(false)
+  
+  // Modal State
+  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   const loadProperties = useCallback(async () => {
     if (!contract) return
@@ -293,10 +298,16 @@ export default function AuthorityDashboard() {
                             </td>
                             <td className="px-6 py-6 text-right">
                               <div className="flex justify-end gap-2">
-                                <Button variant="ghost" size="icon" asChild className="hover:bg-blue-500/10 hover:text-blue-400">
-                                  <a href={`https://gateway.pinata.cloud/ipfs/${prop.ipfsHash}`} target="_blank" rel="noopener noreferrer">
-                                    <Eye className="w-4 h-4" />
-                                  </a>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  onClick={() => {
+                                    setSelectedProperty(prop)
+                                    setIsModalOpen(true)
+                                  }}
+                                  className="hover:bg-blue-500/10 hover:text-blue-400"
+                                >
+                                  <Eye className="w-4 h-4" />
                                 </Button>
                                 {prop.exists && !prop.verified && (
                                   <>
@@ -329,6 +340,15 @@ export default function AuthorityDashboard() {
           </Card>
         </div>
       </section>
+
+      <PropertyDetailsModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        propertyId={selectedProperty?.id || 0}
+        registryId={selectedProperty?.registryId || ""}
+        ipfsHash={selectedProperty?.ipfsHash || ""}
+        ownerName={selectedProperty?.ownerName || ""}
+      />
 
       <Footer />
     </main>

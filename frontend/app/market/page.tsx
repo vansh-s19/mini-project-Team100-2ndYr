@@ -14,27 +14,61 @@ import { motion, AnimatePresence } from "framer-motion"
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from 'recharts'
+import { useWeb3 } from "@/context/Web3Context"
 
 const BACKEND_URL = "http://localhost:5001"
 
 export default function MarketAnalysisPage() {
-  const [marketProperties, setMarketProperties] = useState([])
+  const { contract } = useWeb3()
+  const [marketProperties, setMarketProperties] = useState<any[]>([])
   const [loadingMarket, setLoadingMarket] = useState(false)
   
   useEffect(() => {
     const fetchMarket = async () => {
         setLoadingMarket(true)
         try {
+            // Priority 1: Smart ML Dataset
             const res = await axios.get(`${BACKEND_URL}/api/market/properties`)
-            setMarketProperties(res.data.slice(0, 12)) // Show top 12 for marketplace
+            if (res.data && res.data.length > 0) {
+              setMarketProperties(res.data.slice(0, 12))
+              setLoadingMarket(false)
+              return
+            }
         } catch (e) {
-            console.error("Market fetch error:", e)
-        } finally {
-            setLoadingMarket(false)
+            console.warn("ML Market fetch failed, falling back to blockchain registry...", e)
         }
+
+        // Priority 2: Live Blockchain Registry (Fallback)
+        if (contract) {
+          try {
+            const count = await contract.getPropertyCount()
+            const total = count.toNumber()
+            const props = []
+            // Fetch last 12 properties
+            for (let i = total; i > Math.max(0, total - 12); i--) {
+              try {
+                const p = await contract.getProperty(i)
+                if (p.exists) {
+                  props.push({
+                    name: p.ownerName,
+                    city: p.propertyAddress.split(",")[0],
+                    area: p.area,
+                    bedrooms: 3, // Default for viz
+                    isBlockchain: true,
+                    registryId: p.registryId
+                  })
+                }
+              } catch (e) { /* skip */ }
+            }
+            setMarketProperties(props)
+          } catch (err) {
+            console.error("Blockchain fallback failed:", err)
+          }
+        }
+        setLoadingMarket(false)
     }
     fetchMarket()
-  }, [])
+  }, [contract])
 
   return (
     <main className="min-h-screen bg-[#0f1513] text-white">
