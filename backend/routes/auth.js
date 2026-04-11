@@ -5,7 +5,7 @@ const User = require("../models/user.model");
 
 const router = express.Router();
 
-// ───────────────────────── Auth Helper ─────────────────────────
+// ───────────────────────── Auth Helper & Middleware ─────────────────────────
 const generateToken = (user) => {
   return jwt.sign(
     { id: user._id, email: user.email, role: user.role },
@@ -13,6 +13,20 @@ const generateToken = (user) => {
     { expiresIn: "7d" }
   );
 };
+
+// Database connection watchdog
+const checkDB = (req, res, next) => {
+  if (require("mongoose").connection.readyState !== 1) {
+    return res.status(503).json({
+      error: "Database Connection Error",
+      message: "The server is currently unable to reach the database. Please check if your IP is whitelisted in MongoDB Atlas.",
+      suggestion: "Make sure you have added 0.0.0.0/0 to your MongoDB Network Access."
+    });
+  }
+  next();
+};
+
+router.use(checkDB);
 
 // ───────────────────────── Email/Password Auth ─────────────────────────
 

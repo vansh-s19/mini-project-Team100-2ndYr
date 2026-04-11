@@ -15,9 +15,23 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // ───────────────────────── Database Connection ─────────────────────────
-mongoose.connect(process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/landchain")
+const dbOptions = {
+  serverSelectionTimeoutMS: 5000, // Fail fast if can't connect (5s)
+};
+
+mongoose.connect(process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/landchain", dbOptions)
   .then(() => console.log("🍃 MongoDB Connected Successfully"))
-  .catch(err => console.error("❌ MongoDB Connection Error:", err));
+  .catch(err => {
+    console.error("❌ MongoDB Connection Error:", err.message);
+    console.error("👉 TIP: If you're using MongoDB Atlas, make sure your IP is whitelisted (0.0.0.0/0 for demo).");
+  });
+
+// Disable buffering to fail fast on queries if DB is down
+mongoose.set("bufferCommands", false);
+
+mongoose.connection.on('error', err => {
+  console.error('🔥 Mongoose connection error:', err);
+});
 
 // ───────────────────────── Middleware ─────────────────────────
 app.use(cors({

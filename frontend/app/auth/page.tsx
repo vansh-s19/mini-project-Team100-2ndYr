@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Mail, Lock, User, Github, Chrome, ArrowRight, ShieldCheck, Sparkles } from "lucide-react"
+import { Mail, Lock, User, Chrome, ArrowRight, ShieldCheck, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
@@ -162,14 +162,7 @@ export default function AuthPage() {
               className="flex-1 h-12 rounded-xl border-white/10 bg-slate-900/50 hover:bg-slate-800 hover:border-emerald-500/30 transition-all font-bold gap-2 text-white"
             >
               <Chrome className="w-4 h-4" />
-              Google
-            </Button>
-            <Button
-              variant="outline"
-              className="flex-1 h-12 rounded-xl border-white/10 bg-slate-900/50 hover:bg-slate-800 hover:border-emerald-500/30 transition-all font-bold gap-2 text-white"
-            >
-              <Github className="w-4 h-4" />
-              GitHub
+              Continue with Google Account
             </Button>
           </div>
 
