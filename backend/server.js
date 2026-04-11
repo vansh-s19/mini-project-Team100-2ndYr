@@ -55,6 +55,15 @@ app.get("/api/health", (req, res) => {
 // ───────────────────────── Error Handling ─────────────────────────
 app.use((err, req, res, next) => {
   console.error("Server error:", err.message);
+
+  // Handle Multer specific errors (e.g., file validation)
+  if (err.name === "MulterError" || err.message.includes("Only images are allowed")) {
+    return res.status(400).json({
+      error: "Bad Request",
+      message: err.message,
+    });
+  }
+
   res.status(500).json({
     error: "Internal server error",
     message: err.message,

@@ -29,8 +29,7 @@ async function main() {
     __dirname,
     "..",
     "frontend",
-    "src",
-    "contracts"
+    "lib"
   );
 
   // Also save to the new Next.js frontend

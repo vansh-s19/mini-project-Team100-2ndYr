@@ -44,6 +44,14 @@ export default function RegisterPropertyPage() {
     if (!selectedFile) return
     
     setFile(selectedFile)
+    
+    // Check if file is an image for OCR
+    const isImage = selectedFile.type.startsWith("image/")
+    if (!isImage) {
+      console.log("ℹ️ OCR skipped for non-image file.")
+      return
+    }
+
     setIsProcessing(true)
 
     try {
@@ -64,9 +72,13 @@ export default function RegisterPropertyPage() {
           area: fields.area || ""
         })
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("OCR Error:", error)
-      // We don't alert here to keep the "fill manually" fallback seamless
+      // Custom message for invalid file types from backend (if client check missed it)
+      const errorMsg = error.response?.data?.message || error.message
+      if (errorMsg.includes("Only images are allowed")) {
+         console.warn("⚠️ OCR failed: Only images are supported for auto-fill.")
+      }
     } finally {
       setIsProcessing(false)
     }
