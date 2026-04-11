@@ -55,7 +55,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
 
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Login failed")
+      if (!res.ok) {
+        const errorMsg = data.message ? `${data.error}: ${data.message}` : (data.error || "Login failed")
+        throw new Error(errorMsg)
+      }
 
       setToken(data.token)
       setUser(data.user)
@@ -80,7 +83,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
 
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Registration failed")
+      if (!res.ok) {
+        const errorMsg = data.message ? `${data.error}: ${data.message}` : (data.error || "Registration failed")
+        throw new Error(errorMsg)
+      }
 
       setToken(data.token)
       setUser(data.user)
