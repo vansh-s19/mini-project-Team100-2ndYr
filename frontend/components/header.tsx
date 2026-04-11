@@ -2,14 +2,15 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Menu, Wallet, LogOut } from "lucide-react"
+import { Menu, Wallet, LogOut, Search, User as UserIcon } from "lucide-react"
+import { Input } from "@/components/ui/input"
 import ElectricBorder from "@/components/ElectricBorder"
 import BorderGlow from "@/components/BorderGlow"
 import { useWeb3 } from "@/context/Web3Context"
 import { useAuth } from "@/context/AuthContext"
-import { User as UserIcon } from "lucide-react"
 
 const navLinks = [
   { href: "/properties", label: "My Properties" },
@@ -21,9 +22,18 @@ const navLinks = [
 ]
 
 export function Header() {
+  const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
+  const [quickSearch, setQuickSearch] = useState("")
   const { account, isConnected, isConnecting, connectWallet, disconnectWallet } = useWeb3()
   const { user, isAuthenticated, logout } = useAuth()
+
+  const handleQuickSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!quickSearch.trim()) return
+    router.push(`/verify?id=${quickSearch.trim()}`)
+    setQuickSearch("")
+  }
 
   const truncatedAddress = account
     ? `${account.slice(0, 6)}...${account.slice(-4)}`
@@ -40,6 +50,19 @@ export function Header() {
             </div>
             <span className="text-lg font-semibold tracking-tight">LandChain</span>
           </Link>
+
+          {/* Quick Registry Search */}
+          <div className="hidden xl:flex items-center flex-1 max-w-sm mx-8">
+            <form onSubmit={handleQuickSearch} className="relative w-full group">
+               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-hover:text-emerald-500 transition-colors" />
+               <Input 
+                 placeholder="Search Registry ID..." 
+                 value={quickSearch}
+                 onChange={(e) => setQuickSearch(e.target.value)}
+                 className="bg-secondary/50 border-white/5 pl-10 h-10 rounded-xl focus:border-emerald-500/30 transition-all font-mono text-xs"
+               />
+            </form>
+          </div>
 
           {/* Desktop Navigation */}
           <div className="hidden items-center gap-1 lg:flex">

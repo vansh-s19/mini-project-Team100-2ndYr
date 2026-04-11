@@ -19,9 +19,11 @@ import {
   Copy,
   Clock,
   Loader2,
-  XCircle
+  XCircle,
+  Eye
 } from "lucide-react"
 import { useWeb3 } from "@/context/Web3Context"
+import { PropertyDetailsModal } from "@/components/PropertyDetailsModal"
 
 interface PropertyResult {
   id: number
@@ -43,6 +45,11 @@ export default function PublicVerificationPage() {
   const [isSearching, setIsSearching] = useState(false)
   const [result, setResult] = useState<PropertyResult | null>(null)
   const [notFound, setNotFound] = useState(false)
+
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
+  // ... rest of the component
 
   // Auto-search if ?id= query param is present
   useEffect(() => {
@@ -206,6 +213,11 @@ export default function PublicVerificationPage() {
                     <p className="text-muted-foreground">{result.propertyAddress}</p>
                     <p className="mt-1 font-mono text-sm text-muted-foreground">Property #{result.id}</p>
                   </div>
+                  <div className="flex-1 text-right">
+                    <Button onClick={() => setIsModalOpen(true)} className="rounded-xl gap-2 font-black text-xs uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-500/20">
+                      View Full Records <Eye className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -316,6 +328,15 @@ export default function PublicVerificationPage() {
           )}
         </div>
       </section>
+
+      <PropertyDetailsModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        propertyId={result?.id || 0}
+        registryId={result?.registryId || ""}
+        ipfsHash={result?.ipfsHash || ""}
+        ownerName={result?.ownerName || ""}
+      />
 
       <Footer />
     </main>
