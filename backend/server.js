@@ -46,6 +46,7 @@ app.use(passport.initialize());
 
 // Serve uploaded files statically (for preview)
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/public", express.static(path.join(__dirname, "public")));
 
 // ───────────────────────── Routes ─────────────────────────
 app.use("/api/ocr", ocrRoutes);

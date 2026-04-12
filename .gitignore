@@ -4,9 +4,7 @@ node_modules/
 /backend/node_modules/
 
 # Environment Variables
-.env
-.env.*
-backend/.env
+
 
 # Next.js
 .next/

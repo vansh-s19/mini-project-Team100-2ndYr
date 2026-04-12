@@ -1,14 +1,12 @@
 "use client"
 
-import { useEffect, useState } from 'react'
-import { MapContainer, TileLayer, Marker, Popup, Circle, LayerGroup } from 'react-leaflet'
+import { useEffect, useState, useRef, useCallback } from 'react'
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Home, User, Maximize2, MapPin, ShieldCheck, Sparkles } from 'lucide-react'
+import MarkerClusterGroup from 'react-leaflet-cluster'
 
-// Fix for default icon set in Leaflet + React
+// Fix default icons
 delete (L.Icon.Default.prototype as any)._getIconUrl
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
@@ -16,162 +14,238 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 })
 
-interface Property {
-  name: string
-  lat: number
-  lng: number
-  city: string
-  area: number
-  type: string
-  furnish_status: string
-  bedrooms: number
-  actual_price: number
-  predicted_price: number
-  profit_margin: number
-  isVerified?: boolean
+// ── Custom SVG markers ──
+function createIcon(color: string, size: number, glow: boolean) {
+  const glowFilter = glow
+    ? `<filter id="g"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="${color}" flood-opacity="0.6"/></filter>`
+    : ''
+  const filterAttr = glow ? 'filter="url(#g)"' : ''
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 44" width="${size}" height="${Math.round(size * 1.375)}">
+    <defs>${glowFilter}
+      <linearGradient id="gr" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" style="stop-color:${color};stop-opacity:1"/>
+        <stop offset="100%" style="stop-color:${color};stop-opacity:0.75"/>
+      </linearGradient>
+    </defs>
+    <path d="M16 0C7.16 0 0 7.16 0 16c0 12 16 28 16 28s16-16 16-28C32 7.16 24.84 0 16 0z"
+          fill="url(#gr)" ${filterAttr} stroke="white" stroke-width="1.5"/>
+    <circle cx="16" cy="15" r="5.5" fill="white" opacity="0.95"/>
+    <circle cx="16" cy="15" r="2.5" fill="${color}"/>
+  </svg>`
+  return L.icon({
+    iconUrl: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+    iconSize: [size, Math.round(size * 1.375)],
+    iconAnchor: [size / 2, Math.round(size * 1.375)],
+    popupAnchor: [0, -Math.round(size * 1.375) - 2],
+  })
 }
 
-export default function PropertyMap({ properties }: { properties: Property[] }) {
-  const [isMounted, setIsMounted] = useState(false)
+// Real = larger, glowing | Mock = smaller, muted
+const icons = {
+  real_buy: createIcon('#059669', 36, true),
+  real_rent: createIcon('#2563eb', 36, true),
+  mock_buy: createIcon('#6b7280', 24, false),
+  mock_rent: createIcon('#6b7280', 24, false),
+  selected: createIcon('#f59e0b', 40, true),
+}
 
+export interface PropertyData {
+  ownerName: string
+  bhk: string
+  sqft: number
+  status: string
+  propertyName: string
+  address: string
+  city: string
+  furnished: string
+  type: string
+  pricePerSqft: number
+  lat: number
+  lng: number
+  category: string
+  source: string
+}
+
+function getIcon(p: PropertyData, isSelected: boolean) {
+  if (isSelected) return icons.selected
+  if (p.source === 'real') return p.category === 'Buying' ? icons.real_buy : icons.real_rent
+  return p.category === 'Buying' ? icons.mock_buy : icons.mock_rent
+}
+
+// ── FlyTo on selection ──
+function FlyToSelected({ prop }: { prop: PropertyData | null }) {
+  const map = useMap()
   useEffect(() => {
-    setIsMounted(true)
-  }, [])
+    if (prop) map.flyTo([prop.lat, prop.lng], 14, { duration: 1 })
+  }, [prop, map])
+  return null
+}
 
-  if (!isMounted) return <div className="w-full h-full bg-[#0f1513]/50 animate-pulse rounded-3xl border border-border/50 flex items-center justify-center text-slate-500 font-mono text-xs uppercase tracking-widest">Initialising Geo Ledger...</div>
+function formatPrice(price: number) {
+  if (price >= 10000000) return `₹${(price / 10000000).toFixed(1)} Cr`
+  if (price >= 100000) return `₹${(price / 100000).toFixed(1)} L`
+  return `₹${price.toLocaleString('en-IN')}`
+}
 
-  // Helper to calculate circle radius (approximate for visualization)
-  const getRadius = (area: number) => Math.sqrt(area) * 2
+export default function PropertyMap({
+  properties,
+  selectedProperty,
+  onSelectProperty,
+}: {
+  properties: PropertyData[]
+  selectedProperty: PropertyData | null
+  onSelectProperty: (p: PropertyData) => void
+}) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+
+  if (!mounted) return (
+    <div className="w-full h-full bg-slate-100 flex items-center justify-center rounded-2xl animate-pulse">
+      <span className="text-slate-400 text-sm font-medium">Loading Map…</span>
+    </div>
+  )
 
   return (
-    <div className="w-full h-full relative rounded-[40px] overflow-hidden border border-border/50 shadow-2xl group">
-      {/* Map Overlay: Grid Pulse */}
-      <div className="absolute inset-0 pointer-events-none z-10 border-[20px] border-[#0f1513] opacity-20" />
-      
+    <div className="w-full h-full relative rounded-2xl overflow-hidden border border-slate-200/50">
       <MapContainer
-        center={[23.5937, 78.9629]} // Center of India
+        center={[23.5, 78.9]}
         zoom={5}
         scrollWheelZoom={true}
         style={{ height: '100%', width: '100%' }}
         className="z-0"
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-          detectRetina={true}
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>'
+          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
         />
-        
-        {properties.map((prop, idx) => (
-          <LayerGroup key={idx}>
-            {/* The Plot Outline Circle */}
-            <Circle 
-              center={[prop.lat, prop.lng]}
-              radius={getRadius(prop.area || 1000)}
-              pathOptions={{ 
-                color: prop.isVerified ? '#10b981' : '#f59e0b', 
-                fillColor: prop.isVerified ? '#10b981' : '#f59e0b', 
-                fillOpacity: 0.15,
-                weight: 1,
-                dashArray: '5, 5'
-              }}
-            />
+        <FlyToSelected prop={selectedProperty} />
 
-            <Marker 
-              position={[prop.lat, prop.lng]}
-            >
-              <Popup className="premium-popup">
-                <div className="p-6 w-[280px] bg-[#0f1513]/95 text-white rounded-[32px] border border-border/50 backdrop-blur-3xl shadow-2xl overflow-hidden relative">
-                  <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-emerald-500 to-transparent" />
-                  
-                  {/* Header with Title & Badge */}
-                  <div className="flex items-center justify-between mb-5">
-                    <h3 className="font-black text-sm uppercase tracking-tight truncate max-w-[170px]">{prop.name || "DECENTRALIZED ASSET"}</h3>
-                    <div className={`px-2 py-0.5 rounded-full border text-[8px] font-black uppercase flex items-center gap-1 ${prop.isVerified ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
-                      {prop.isVerified ? <ShieldCheck className="w-2 h-2" /> : <Sparkles className="w-2 h-2" />}
-                      {prop.isVerified ? 'Verified' : 'Pending'}
-                    </div>
-                  </div>
-
-                  {/* Price Display */}
-                  <div className="mb-5 p-4 rounded-2xl bg-secondary/30 border border-border/50">
-                    <div className="flex justify-between items-end mb-2">
-                        <div>
-                          <p className="text-[8px] text-slate-500 uppercase font-black tracking-widest mb-1">Blockchain Value</p>
-                          <span className="text-xl font-black text-emerald-400">₹{prop.actual_price}L</span>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[8px] text-slate-500 uppercase font-black tracking-widest mb-1">AI Margin</p>
-                          <span className={`text-sm font-bold ${prop.profit_margin >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {prop.profit_margin >= 0 ? '+' : ''}{prop.profit_margin}%
-                          </span>
-                        </div>
-                    </div>
-                  </div>
-
-                  {/* Parameter Details */}
-                  <div className="grid gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-secondary/50 flex items-center justify-center border border-border">
-                        <Maximize2 className="w-4 h-4 text-emerald-400" />
+        <MarkerClusterGroup
+          chunkedLoading
+          maxClusterRadius={50}
+          spiderfyOnMaxZoom
+          showCoverageOnHover={false}
+          iconCreateFunction={(cluster: any) => {
+            const count = cluster.getChildCount()
+            let size = 'small'
+            if (count > 20) size = 'large'
+            else if (count > 10) size = 'medium'
+            return L.divIcon({
+              html: `<div class="cluster-icon cluster-${size}">${count}</div>`,
+              className: 'custom-cluster',
+              iconSize: L.point(40, 40),
+            })
+          }}
+        >
+          {properties.map((p, i) => {
+            const isSelected = selectedProperty?.lat === p.lat && selectedProperty?.lng === p.lng && selectedProperty?.propertyName === p.propertyName
+            return (
+              <Marker
+                key={`${p.propertyName}-${p.lat}-${i}`}
+                position={[p.lat, p.lng]}
+                icon={getIcon(p, isSelected)}
+                eventHandlers={{
+                  click: () => onSelectProperty(p),
+                }}
+              >
+                <Popup className="property-popup" maxWidth={300} minWidth={260}>
+                  <div className="pp-card">
+                    <div className="pp-head">
+                      <div className="pp-head-l">
+                        <h3 className="pp-title">{p.propertyName}</h3>
+                        <p className="pp-addr">{p.address}</p>
                       </div>
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{prop.area} SQ FT AREA</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-secondary/50 flex items-center justify-center border border-border">
-                        <MapPin className="w-4 h-4 text-emerald-400" />
-                      </div>
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">{prop.city}</span>
-                    </div>
-                  </div>
-
-                  {/* Footer Chip */}
-                  <div className="mt-5 pt-4 border-t border-border/50">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[8px] text-slate-600 uppercase font-black tracking-widest leading-none">
-                          Ledger Sync: <span className="text-emerald-500 font-mono">STABLE</span>
+                      <span className={`pp-badge ${p.source === 'real' ? 'pp-real' : 'pp-mock'}`}>
+                        {p.source === 'real' ? '⭐ Verified' : '📋 Listed'}
                       </span>
-                      <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
+                    </div>
+                    <div className="pp-price-row">
+                      <span className="pp-total">{formatPrice(p.sqft * p.pricePerSqft)}</span>
+                      <span className="pp-sqft">₹{p.pricePerSqft.toLocaleString('en-IN')}/sqft</span>
+                    </div>
+                    <div className="pp-details">
+                      <span>👤 {p.ownerName}</span>
+                      <span>🛏️ {p.bhk}</span>
+                      <span>📐 {p.sqft.toLocaleString()} sqft</span>
+                      <span>🏢 {p.type}</span>
+                      <span>🪑 {p.furnished}</span>
+                      <span>{p.status === 'Ready to Move' ? '✅' : '🔨'} {p.status}</span>
+                    </div>
+                    <div className="pp-foot">
+                      <span className="pp-city">📍 {p.city}</span>
+                      <span className={`pp-cat ${p.category === 'Buying' ? 'pp-buy' : 'pp-rent'}`}>
+                        {p.category === 'Buying' ? '🏠 Buy' : '🔑 Rent'}
+                      </span>
                     </div>
                   </div>
-                </div>
-              </Popup>
-            </Marker>
-          </LayerGroup>
-        ))}
+                </Popup>
+              </Marker>
+            )
+          })}
+        </MarkerClusterGroup>
       </MapContainer>
 
-      {/* Floating Map Controls Legend */}
-      <div className="absolute top-6 right-6 z-20 space-y-2">
-         <div className="p-3 bg-secondary/80 backdrop-blur-xl border border-white/10 rounded-2xl flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
-            <span className="text-[9px] font-black uppercase tracking-widest text-slate-300">Verified Deed</span>
-         </div>
-         <div className="p-3 bg-secondary/80 backdrop-blur-xl border border-white/10 rounded-2xl flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
-            <span className="text-[9px] font-black uppercase tracking-widest text-slate-300">Awaiting Auth</span>
-         </div>
-      </div>
-
       <style jsx global>{`
-        .premium-popup .leaflet-popup-content-wrapper {
-          background: transparent !important;
-          color: white !important;
-          border: none !important;
-          border-radius: 32px !important;
-          padding: 0 !important;
-          box-shadow: none !important;
+        .leaflet-container { background: #f1f5f9 !important; font-family: 'Inter', system-ui, sans-serif; }
+
+        /* Cluster styles */
+        .custom-cluster { background: none !important; }
+        .cluster-icon {
+          display: flex; align-items: center; justify-content: center;
+          border-radius: 50%; font-weight: 800; font-size: 12px; color: white;
+          box-shadow: 0 4px 14px rgba(0,0,0,0.15);
         }
-        .premium-popup .leaflet-popup-content {
-          margin: 0 !important;
-          width: auto !important;
+        .cluster-small { width: 36px; height: 36px; background: #059669; }
+        .cluster-medium { width: 42px; height: 42px; background: #0d9488; font-size: 13px; }
+        .cluster-large { width: 50px; height: 50px; background: #0f766e; font-size: 14px; }
+
+        /* Popup */
+        .leaflet-popup-content-wrapper {
+          background: #fff !important; border-radius: 16px !important;
+          padding: 0 !important; box-shadow: 0 12px 40px rgba(0,0,0,0.12) !important; overflow: hidden;
         }
-        .premium-popup .leaflet-popup-tip {
-          background: #0f1513 !important;
-          border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        .leaflet-popup-content { margin: 0 !important; line-height: 1.5 !important; }
+        .leaflet-popup-tip { background: #fff !important; }
+        .leaflet-popup-close-button {
+          color: #94a3b8 !important; top: 10px !important; right: 12px !important;
+          font-size: 20px !important; z-index: 10 !important;
         }
-        .leaflet-container {
-          background: #0f1513 !important;
+
+        .pp-card { padding: 16px; width: 260px; }
+        .pp-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+        .pp-head-l { min-width: 0; flex: 1; }
+        .pp-title { font-size: 14px; font-weight: 800; color: #0f172a; margin: 0 0 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .pp-addr { font-size: 11px; color: #94a3b8; margin: 0; }
+        .pp-badge { font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 50px; white-space: nowrap; }
+        .pp-real { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
+        .pp-mock { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
+        .pp-price-row {
+          display: flex; justify-content: space-between; align-items: baseline;
+          padding: 10px 12px; background: #f8fafc; border-radius: 12px; margin-bottom: 10px; border: 1px solid #e2e8f0;
         }
+        .pp-total { font-size: 18px; font-weight: 900; color: #0f172a; }
+        .pp-sqft { font-size: 10px; color: #64748b; font-weight: 600; }
+        .pp-details {
+          display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 10px;
+          font-size: 11px; color: #475569; font-weight: 500;
+        }
+        .pp-details span { padding: 5px 8px; background: #f8fafc; border-radius: 8px; }
+        .pp-foot { display: flex; justify-content: space-between; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+        .pp-city { font-size: 11px; font-weight: 700; color: #475569; padding: 4px 10px; background: #f1f5f9; border-radius: 50px; }
+        .pp-cat { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 50px; }
+        .pp-buy { background: #ecfdf5; color: #059669; }
+        .pp-rent { background: #eff6ff; color: #2563eb; }
+
+        /* Marker hover - subtle brightness only, NO transform to avoid anchor shift */
+        .leaflet-marker-icon { transition: filter 0.2s ease !important; }
+        .leaflet-marker-icon:hover { filter: brightness(1.3) drop-shadow(0 0 6px rgba(16,185,129,0.4)) !important; z-index: 10000 !important; }
+
+        /* Zoom controls */
+        .leaflet-control-zoom a {
+          background: #fff !important; color: #475569 !important; border: 1px solid #e2e8f0 !important;
+          border-radius: 10px !important; width: 34px !important; height: 34px !important; line-height: 34px !important;
+        }
+        .leaflet-control-zoom { border: none !important; border-radius: 12px !important; box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important; }
       `}</style>
     </div>
   )

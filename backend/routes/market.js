@@ -33,24 +33,48 @@ router.post("/predict-rent", async (req, res) => {
   }
 });
 
+const Property = require("../models/property.model");
+
 /**
  * @route GET /api/market/properties
- * @desc Get list of properties from the ML dataset for mapping
+ * @desc Get list of properties from MongoDB with ML server as fallback
  */
 router.get("/properties", async (req, res) => {
   try {
+    // Priority: Fetch from live MongoDB Database
+    const dbProperties = await Property.find().limit(150);
+    
+    if (dbProperties && dbProperties.length > 0) {
+      // Map DB fields to frontend format
+      const mapped = dbProperties.map((p, i) => ({
+        ownerName: p.ownerNames,
+        propertyName: p.plotNumber,
+        address: p.address,
+        city: p.district,
+        sqft: parseInt(p.area) || 1200,
+        bhk: p.bhk,
+        status: p.propertyStatus,
+        furnished: p.furnishedStatus,
+        type: p.propertyType,
+        pricePerSqft: 5000, // Derived or mocked for market viz
+        lat: parseFloat(p.lat),
+        lng: parseFloat(p.lng),
+        category: i % 2 === 0 ? "Buying" : "Rental", // Alternating for viz
+        source: "real",
+        imageUrl: p.imageUrl
+      }));
+      return res.json(mapped);
+    }
+
+    // Secondary: Fetch from ML Server
     const response = await axios.get(`${ML_SERVER_URL}/properties`);
     res.json(response.data);
   } catch (error) {
-    console.warn("ML Server not found. Using mock properties fallback.");
+    console.warn("DB/ML fetch failed. Using emergency mock fallback.");
     
-    // Premium Mock Data Fallback
     const mockProperties = [
-      { id: 101, name: "Emerald Heights", city: "Ahmedabad", area: 1500, bedrooms: 3, price: 7500000, lat: 23.0225, lng: 72.5714 },
-      { id: 102, name: "Sapphire Villa", city: "Vadodara", area: 2200, bedrooms: 4, price: 12000000, lat: 22.3072, lng: 73.1812 },
-      { id: 103, name: "Ruby Enclave", city: "Surat", area: 1200, bedrooms: 2, price: 5500000, lat: 21.1702, lng: 72.8311 },
-      { id: 104, name: "Topaz Tower", city: "Rajkot", area: 1800, bedrooms: 3, price: 8500000, lat: 22.3039, lng: 70.8022 },
-      { id: 105, name: "Diamond Estate", city: "Gandhinagar", area: 3000, bedrooms: 5, price: 18000000, lat: 23.2156, lng: 72.6369 }
+      { id: 101, propertyName: "Emerald Heights", city: "Ahmedabad", sqft: 1500, bhk: "3 BHK", pricePerSqft: 5000, lat: 23.0225, lng: 72.5714, source: "mock", status: "Ready to Move" },
+      { id: 102, propertyName: "Sapphire Villa", city: "Vadodara", sqft: 2200, bhk: "4 BHK", pricePerSqft: 6000, lat: 22.3072, lng: 73.1812, source: "mock", status: "Ready to Move" }
     ];
     
     res.json(mockProperties);

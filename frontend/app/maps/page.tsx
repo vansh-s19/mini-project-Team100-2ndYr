@@ -1,206 +1,306 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import axios from "axios"
-import dynamic from 'next/dynamic'
+import { useState, useMemo, useRef, useEffect, useCallback, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
+import dynamic from "next/dynamic"
 import { Header } from "@/components/header"
-import { Footer } from "@/components/footer"
 import { motion, AnimatePresence } from "framer-motion"
-import { Map, LucideIcon, Search, Filter, Layers, List, Sparkles, Home, ArrowRight } from "lucide-react"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import {
+  Search, Layers, Home, Building2, MapPin, X, ChevronDown,
+  Star, Map as LucideMap
+} from "lucide-react"
+import type { PropertyData } from "@/components/PropertyMap"
 
-// Dynamic import for the Map component to avoid SSR errors with Leaflet
-const PropertyMap = dynamic(() => import('@/components/PropertyMap'), { 
+const PropertyMap = dynamic(() => import("@/components/PropertyMap"), {
   ssr: false,
-  loading: () => <div className="w-full h-full bg-[#0a0f1e]/60 flex items-center justify-center rounded-3xl animate-pulse backdrop-blur-xl border border-white/10">Loading map data...</div>
+  loading: () => (
+    <div className="w-full h-full bg-slate-800 flex items-center justify-center rounded-2xl animate-pulse">
+      <span className="text-slate-500 text-sm font-medium">Loading map…</span>
+    </div>
+  ),
 })
 
-const BACKEND_URL = "http://localhost:5001"
+const CITIES = ["All", "Mumbai", "Delhi", "Gurgaon", "Bengaluru", "Hyderabad", "Pune", "Noida", "Jaipur", "Lucknow", "Ahmedabad", "Chandigarh"] as const
 
-export default function MapsPage() {
-  const [properties, setProperties] = useState([])
-  const [filteredProps, setFilteredProps] = useState([])
+export default function MapsPageWrapper() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#0f1513]" />}>
+      <MapsPage />
+    </Suspense>
+  )
+}
+
+function MapsPage() {
+  const searchParams = useSearchParams()
+  const [mode, setMode] = useState<"Buying" | "Rental">("Buying")
   const [searchTerm, setSearchTerm] = useState("")
+  const [cityFilter, setCityFilter] = useState<string>("All")
+  const [selectedProperty, setSelectedProperty] = useState<PropertyData | null>(null)
+  const [showCityDropdown, setShowCityDropdown] = useState(false)
 
+  const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  const [allProperties, setAllProperties] = useState<PropertyData[]>([])
+  const [loading, setLoading] = useState(true)
+
+  // Fetch properties from DB
   useEffect(() => {
     const fetchProps = async () => {
       try {
-        const response = await axios.get(`${BACKEND_URL}/api/market/properties`)
-        setProperties(response.data)
-        setFilteredProps(response.data)
+        const res = await fetch("http://localhost:5001/api/market/properties")
+        const data = await res.json()
+        if (Array.isArray(data)) setAllProperties(data)
       } catch (err) {
-        console.error("Mapping Error:", err)
+        console.error("Map fetch failed:", err)
+      } finally {
+        setLoading(false)
       }
     }
     fetchProps()
   }, [])
 
-  const handleSearch = (term: string) => {
-    setSearchTerm(term)
-    if (!term) {
-      setFilteredProps(properties)
-      return
+  // Auto-select property from URL params (from /market card click)
+  useEffect(() => {
+    const lat = searchParams.get('lat')
+    const lng = searchParams.get('lng')
+    const name = searchParams.get('name')
+    if (lat && lng) {
+      const found = allProperties.find(p =>
+        p.lat.toString().slice(0, 6) === lat.slice(0, 6) &&
+        p.lng.toString().slice(0, 6) === lng.slice(0, 6)
+      )
+      if (found) {
+        setSelectedProperty(found)
+        setMode(found.category === "Buying" ? "Buying" : "Rental")
+      }
     }
-    const filtered = properties.filter((p: any) => 
-      p.name.toLowerCase().includes(term.toLowerCase()) || 
-      p.city.toLowerCase().includes(term.toLowerCase())
-    )
-    setFilteredProps(filtered)
+  }, [searchParams, allProperties])
+
+  // Filter logic
+  const filteredProperties = useMemo(() => {
+    return allProperties.filter(p => {
+      const matchesSearch =
+        p.propertyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.city.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchesMode = p.category === (mode === "Buying" ? "Buying" : "Rental")
+      const matchesCity = cityFilter === "All" || p.city === cityFilter
+      return matchesSearch && matchesMode && matchesCity
+    })
+  }, [searchTerm, mode, cityFilter, allProperties])
+
+  const propKey = (p: PropertyData) => `${p.propertyName}-${p.lat}-${p.lng}`
+
+  const handleSelectFromMap = (p: PropertyData) => {
+    setSelectedProperty(p)
+    const key = propKey(p)
+    const element = cardRefs.current.get(key)
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "center" })
+    }
+  }
+
+  const handleSelectFromCard = (p: PropertyData) => {
+    setSelectedProperty(p)
+  }
+
+  const formatPrice = (price: number) => {
+    if (price >= 10000000) return `₹${(price / 10000000).toFixed(1)} Cr`
+    if (price >= 100000) return `₹${(price / 100000).toFixed(1)} L`
+    return `₹${price.toLocaleString('en-IN')}`
   }
 
   return (
-    <main className="min-h-screen bg-[#0f1513] text-white overflow-hidden flex flex-col">
+    <main className="min-h-screen bg-[#0f1513] text-slate-100 flex flex-col overflow-hidden h-screen font-sans">
       <Header />
-      
-      <div className="flex-1 pt-24 px-4 pb-8 flex flex-col">
-        {/* Sub-Header / Controls */}
-        <div className="mx-auto max-w-7xl w-full mb-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 rounded-[32px] bg-card/50 border border-border/50 backdrop-blur-sm">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-secondary/50 flex items-center justify-center border border-border">
-                <Map className="w-5 h-5 text-emerald-400" />
-              </div>
-              <div>
-                <h1 className="text-xl font-black flex items-center gap-2">
-                  Global Ledger Map
-                  <span className="text-[10px] bg-emerald-500 px-2 py-0.5 rounded-full uppercase tracking-tighter text-white">Live</span>
-                </h1>
-                <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Syncing with Ethereum Ledger</p>
-              </div>
+
+      <div className="flex-1 flex flex-col px-4 pb-4 pt-24 min-h-0">
+        {/* ── Top Bar ── */}
+        <div className="mx-auto max-w-[1440px] w-full mb-4">
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+            {/* Mode Switcher */}
+            <div className="flex bg-secondary/50 p-1.5 rounded-2xl border border-border/50">
+              <button
+                onClick={() => setMode("Buying")}
+                className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${mode === "Buying" ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}
+              >
+                Buy
+              </button>
+              <button
+                onClick={() => setMode("Rental")}
+                className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${mode === "Rental" ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "text-slate-500 hover:text-slate-300"}`}
+              >
+                Rent
+              </button>
             </div>
 
-            <div className="flex items-center gap-2 w-full md:w-auto">
-              <div className="relative flex-1 md:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                <Input 
-                  placeholder="Search City or Property..." 
+            {/* Search & City Filter */}
+            <div className="flex-1 flex gap-3 w-full md:max-w-2xl">
+              <div className="relative flex-1 group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-emerald-500 transition-colors" />
+                <input
+                  type="text"
+                  placeholder="Search properties, areas, or cities..."
                   value={searchTerm}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  className="bg-secondary/50 border-border/50 rounded-xl pl-10 focus:border-emerald-500/50 font-mono"
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full h-12 bg-secondary/30 border border-border/50 rounded-2xl pl-12 pr-4 text-sm focus:outline-none focus:border-emerald-500/50 transition-all placeholder:text-slate-600"
                 />
               </div>
-              <Button variant="ghost" size="icon" className="rounded-xl border border-border/50 hover:bg-secondary/50">
-                <Filter className="w-4 h-4" />
-              </Button>
+
+              {/* City Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowCityDropdown(!showCityDropdown)}
+                  className="h-12 px-5 bg-secondary/30 border border-border/50 rounded-2xl text-xs font-bold flex items-center gap-3 hover:bg-secondary/50 transition-all min-w-[140px]"
+                >
+                  <MapPin className="w-4 h-4 text-emerald-500" />
+                  <span className="truncate">{cityFilter === "All" ? "Everywhere" : cityFilter}</span>
+                  <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${showCityDropdown ? "rotate-180" : ""}`} />
+                </button>
+
+                <AnimatePresence>
+                  {showCityDropdown && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className="absolute right-0 top-full mt-2 w-48 bg-card border border-border/50 rounded-2xl shadow-2xl z-[100] overflow-hidden py-1.5 backdrop-blur-xl"
+                    >
+                      {CITIES.map((city) => (
+                        <button
+                          key={city}
+                          onClick={() => { setCityFilter(city); setShowCityDropdown(false) }}
+                          className={`w-full text-left px-4 py-2 text-sm font-medium transition-colors ${cityFilter === city ? "text-emerald-400 bg-emerald-500/10" : "text-slate-300 hover:bg-secondary/50"}`}
+                        >
+                          {city === "All" ? "🌍 All" : `📍 ${city}`}
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Main Map View */}
-        <div className="mx-auto max-w-7xl w-full flex-1 flex flex-col md:flex-row gap-6">
-          
-          {/* Left: Map Container */}
-          <motion.div 
-            className="flex-[3] relative rounded-[40px] overflow-hidden border border-border/50"
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-          >
-             <div className="absolute inset-0 bg-[#0f1513]/5 z-10 pointer-events-none" />
-            <PropertyMap properties={filteredProps} />
-          </motion.div>
+        {/* ── Main Content ── */}
+        <div className="mx-auto max-w-[1440px] w-full flex-1 flex flex-col min-h-0">
 
-          {/* Right: Property Feed Feed Sidebar */}
-          <motion.div 
-            className="flex-1 flex flex-col gap-4 max-h-[calc(100vh-250px)]"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-          >
-            <div className="p-6 rounded-[40px] bg-card/50 border border-border/50 backdrop-blur-sm flex-1 flex flex-col overflow-hidden">
-              <h3 className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                <List className="w-3 h-3" />
-                Live Registry ({filteredProps.length})
-              </h3>
-              
-              <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar flex-1">
-                {filteredProps.map((p: any, i) => (
-                  <motion.div 
-                    key={i} 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.05 }}
-                    className="group p-5 rounded-3xl bg-secondary/30 border border-border/50 hover:border-emerald-500/30 hover:bg-secondary transition-all cursor-pointer shadow-lg"
-                  >
-                    <div className="flex justify-between items-start mb-3">
-                       <div>
-                         <h4 className="text-sm font-black truncate max-w-[120px] text-slate-100 group-hover:text-emerald-400 transition-colors uppercase tracking-tight">{p.name || `Property #${i}`}</h4>
-                         <p className="text-[9px] text-slate-500 uppercase font-black tracking-widest">{p.city}</p>
-                       </div>
-                        <div className="text-right">
-                          <span className="text-[11px] text-emerald-400 font-black bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20">₹{p.actual_price}L</span>
-                          <div className="mt-1 flex items-center gap-1 justify-end">
-                            <span className="text-[8px] text-slate-500 uppercase font-bold">AI:</span>
-                            <span className="text-[9px] font-black text-slate-300">₹{p.predicted_price}L</span>
-                          </div>
-                        </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-2 mb-4">
-                      <div className="flex items-center gap-2 px-2 py-1.5 rounded-xl bg-secondary/50 border border-border">
-                        <Layers className="w-3 h-3 text-slate-500" />
-                        <span className="text-[10px] font-bold text-slate-400">{p.area} sqft</span>
-                      </div>
-                      <div className="flex items-center gap-2 px-2 py-1.5 rounded-xl bg-secondary/50 border border-border">
-                        <Home className="w-3 h-3 text-slate-500" />
-                        <span className="text-[10px] font-bold text-slate-400 font-mono">{p.bedrooms} BHK</span>
-                      </div>
-                      <div className="flex items-center justify-center gap-2 px-2 py-1.5 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
-                        <span className={`text-[9px] font-black ${p.profit_margin >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                          {p.profit_margin >= 0 ? '▲' : '▼'} {Math.abs(p.profit_margin)}% Yield
-                        </span>
-                      </div>
-                    </div>
+          {/* === MAP VIEW === */}
+            <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0">
+              {/* Map */}
+              <div className="flex-[3] relative rounded-2xl overflow-hidden min-h-[500px] lg:min-h-0">
+                <PropertyMap
+                  properties={filteredProperties}
+                  selectedProperty={selectedProperty}
+                  onSelectProperty={handleSelectFromMap}
+                />
+              </div>
 
-                    <div className="flex items-center justify-between">
-                       <div className="flex -space-x-1.5">
-                          {[1,2,3].map(j => (
-                            <div key={j} className="w-5 h-5 rounded-full border-2 border-card bg-secondary/80 flex items-center justify-center text-[8px] font-black text-emerald-400 shadow-sm uppercase">
-                              {String.fromCharCode(64 + j)}
+              {/* Sidebar */}
+              <div className="flex-1 flex flex-col gap-3 lg:max-h-[calc(100vh-210px)] lg:min-w-[310px] lg:max-w-[370px]">
+                {/* Stats row */}
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { label: "Visible", val: filteredProperties.length },
+                    { label: "Real", val: filteredProperties.filter(p => p.source === "real").length },
+                    { label: "Cities", val: new Set(filteredProperties.map(p => p.city)).size },
+                  ].map(s => (
+                    <div key={s.label} className="bg-card/50 rounded-xl p-3 border border-border/50">
+                      <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">{s.label}</p>
+                      <p className="text-lg font-black text-white">{s.val}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* List header */}
+                <div className="bg-card/50 rounded-2xl border border-border/50 flex-1 flex flex-col overflow-hidden">
+                  <div className="p-3.5 border-b border-border/50">
+                    <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                      <Layers className="w-3.5 h-3.5" />
+                      {mode === "Buying" ? "For Sale" : "For Rent"}
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${mode === "Buying" ? "bg-emerald-500/10 text-emerald-400" : "bg-blue-500/10 text-blue-400"}`}>
+                        {filteredProperties.length}
+                      </span>
+                    </h3>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto p-2.5 space-y-2 sidebar-scroll">
+                    {filteredProperties.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-14 text-center">
+                        <Search className="w-6 h-6 text-slate-600 mb-3" />
+                        <p className="text-sm font-semibold text-slate-500">No properties found</p>
+                      </div>
+                    ) : (
+                      filteredProperties.map((p, i) => {
+                        const key = propKey(p)
+                        const isSelected = selectedProperty && propKey(selectedProperty) === key
+                        return (
+                          <div
+                            key={`${key}-${i}`}
+                            ref={(el) => { if (el) cardRefs.current.set(key, el) }}
+                            onClick={() => handleSelectFromCard(p)}
+                            className={`group p-3.5 rounded-xl border cursor-pointer transition-all duration-200 ${
+                              isSelected
+                                ? mode === "Buying"
+                                  ? "bg-emerald-500/10 border-emerald-500/30 shadow-md shadow-emerald-500/5 ring-1 ring-emerald-500/20"
+                                  : "bg-blue-500/10 border-blue-500/30 shadow-md shadow-blue-500/5 ring-1 ring-blue-500/20"
+                                : "bg-secondary/30 border-border/50 hover:bg-secondary/60 hover:border-border"
+                            }`}
+                          >
+                            <div className="flex justify-between items-start mb-1.5">
+                              <div className="min-w-0 flex-1 mr-2">
+                                <div className="flex items-center gap-1.5">
+                                  {p.source === 'real' && <Star className="w-3 h-3 text-amber-400 flex-shrink-0" />}
+                                  <h4 className="text-[13px] font-bold text-slate-100 truncate">{p.propertyName}</h4>
+                                </div>
+                                <p className="text-[10px] text-slate-500 font-medium truncate">{p.address}, {p.city}</p>
+                              </div>
+                              <span className={`text-xs font-extrabold whitespace-nowrap ${mode === "Buying" ? "text-emerald-400" : "text-blue-400"}`}>
+                                {formatPrice(p.sqft * p.pricePerSqft)}
+                              </span>
                             </div>
-                          ))}
-                       </div>
-                       <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all" />
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {[p.bhk, `${p.sqft.toLocaleString()} sqft`, p.type].map((t, j) => (
+                                <span key={j} className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md bg-secondary/50 border border-border/80 text-slate-400">{t}</span>
+                              ))}
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${p.status === "Ready to Move" ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}>
+                                {p.status === "Ready to Move" ? "✓ Ready" : "🔨 Building"}
+                              </span>
+                            </div>
+                          </div>
+                        )
+                      })
+                    )}
+                  </div>
+                </div>
+
+                {/* Legend */}
+                <div className="bg-card/50 rounded-xl p-3 border border-border/50">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/40" />
+                      <span className="text-[10px] font-semibold text-slate-400">Real (Buy)</span>
                     </div>
-                  </motion.div>
-                ))}
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-3 h-3 rounded-full bg-blue-500 shadow-sm shadow-blue-500/40" />
+                      <span className="text-[10px] font-semibold text-slate-400">Real (Rent)</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-gray-500" />
+                      <span className="text-[10px] font-semibold text-slate-500">Support</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-
-            <div className="p-6 rounded-[40px] bg-secondary/30 border border-border/50 relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-all duration-500">
-                  <Sparkles className="w-12 h-12 text-emerald-400" />
-                </div>
-                <h4 className="text-[10px] font-black text-white uppercase tracking-widest mb-1">Global Verification</h4>
-                <p className="text-[10px] text-emerald-400 mb-3 font-mono">NODE SYNC: 100%</p>
-                <div className="h-1.5 w-full bg-secondary/50 rounded-full overflow-hidden border border-border">
-                  <motion.div 
-                    className="h-full bg-emerald-400"
-                    initial={{ width: 0 }}
-                    animate={{ width: "100%" }}
-                    transition={{ duration: 2 }}
-                  />
-                </div>
-            </div>
-          </motion.div>
         </div>
       </div>
 
       <style jsx>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(255, 255, 255, 0.02);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(16, 185, 129, 0.2);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(16, 185, 129, 0.4);
-        }
+        .sidebar-scroll::-webkit-scrollbar { width: 4px; }
+        .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+        .sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(16,185,129,0.15); border-radius: 10px; }
+        .sidebar-scroll::-webkit-scrollbar-thumb:hover { background: rgba(16,185,129,0.3); }
       `}</style>
     </main>
   )

@@ -17,7 +17,7 @@ const propertySchema = new mongoose.Schema({
   propertyStatus: { type: String },
   ownershipType: { type: String },
   furnishedStatus: { type: String },
-  ipfsHash: { type: String },
+  imageUrl: { type: String },
   createdAt: { type: Date, default: Date.now },
 });
 
