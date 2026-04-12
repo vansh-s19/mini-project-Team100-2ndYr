@@ -76,7 +76,53 @@ function generateMockCID() {
 
 // ───────────────────────── Routes ─────────────────────────
 
-// 1. Geocode
+// 1. Search Properties (by Registry ID, Plot Number, or Owner Name)
+router.get("/search", async (req, res) => {
+  try {
+    const rawQuery = req.query.query;
+    if (!rawQuery) return res.status(400).json({ error: "Search query is required" });
+
+    const query = rawQuery.trim();
+
+    const properties = await Property.find({
+      $or: [
+        { registryId: { $regex: query, $options: "i" } },
+        { plotNumber: { $regex: query, $options: "i" } },
+        { ownerNames: { $regex: query, $options: "i" } },
+      ],
+    }).limit(10);
+
+    res.json({ success: true, properties });
+  } catch (error) {
+    console.error("Search Error:", error.message);
+    res.status(500).json({ error: "Search failed" });
+  }
+});
+
+// 2. Sync Blockchain ID to MongoDB
+router.patch("/sync-blockchain-id", async (req, res) => {
+  try {
+    const { registryId, blockchainId } = req.body;
+    if (!registryId || blockchainId === undefined) {
+      return res.status(400).json({ error: "registryId and blockchainId are required" });
+    }
+
+    const property = await Property.findOneAndUpdate(
+      { registryId },
+      { $set: { blockchainId: parseInt(blockchainId) } },
+      { new: true }
+    );
+
+    if (!property) return res.status(404).json({ error: "Property not found in database" });
+
+    res.json({ success: true, property });
+  } catch (error) {
+    console.error("Sync Error:", error.message);
+    res.status(500).json({ error: "Sync failed" });
+  }
+});
+
+// 3. Geocode
 router.post("/geocode", async (req, res) => {
   try {
     const { address } = req.body;

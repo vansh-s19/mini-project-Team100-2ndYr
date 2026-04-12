@@ -54,14 +54,10 @@ export default function RegisterPropertyPage() {
   const [isGeocoding, setIsGeocoding] = useState(false)
   const [ipfsHash, setIpfsHash] = useState("")
 
-  // KYC Guard logic
+  // Auth Guard logic (Login only)
   useEffect(() => {
-    if (!authLoading) {
-      if (!user) {
-        router.push("/auth")
-      } else if (!user.name || !user.phone || !user.pan) {
-        router.push("/profile")
-      }
+    if (!authLoading && !user) {
+      router.push("/auth")
     }
   }, [user, authLoading, router])
 
@@ -71,25 +67,7 @@ export default function RegisterPropertyPage() {
     </div>
   )
 
-  const isProfileIncomplete = !user?.name || !user?.phone || !user?.pan
-  
-  if (isProfileIncomplete) {
-    return (
-      <main className="min-h-screen bg-[#0f1513] flex items-center justify-center p-4">
-        <Header />
-        <Card className="max-w-md w-full bg-slate-950 border-white/10 rounded-[40px] text-center p-10 border shadow-2xl">
-          <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-            <ShieldCheck className="w-10 h-10 text-emerald-400" />
-          </div>
-          <h2 className="text-2xl font-black text-white mb-4">Identity Verification.</h2>
-          <p className="text-slate-400 mb-8 leading-relaxed font-medium">To protect the integrity of the blockchain registry, you must complete your legal profile before adding property assets.</p>
-          <Button onClick={() => router.push("/profile")} className="w-full bg-emerald-600 hover:bg-emerald-500 rounded-2xl py-6 font-bold shadow-lg shadow-emerald-500/20">
-            Verify Profile Now
-          </Button>
-        </Card>
-      </main>
-    )
-  }
+
 
   const [formData, setFormData] = useState<ExtractedData>({
     ownerNames: "",
@@ -257,6 +235,23 @@ export default function RegisterPropertyPage() {
       
       const receipt = await tx.wait()
       console.log("  ✅ Transaction Confirmed!", receipt);
+
+      // New: Sync Blockchain ID back to Database
+      try {
+        const event = receipt.events?.find((e: any) => e.event === "PropertyRegistered")
+        const newBlockchainId = event?.args?.propertyId?.toString()
+        
+        if (newBlockchainId) {
+          console.log(`  🔗 Syncing Blockchain ID ${newBlockchainId} to Database...`)
+          await axios.patch(`${BACKEND_URL}/api/property/sync-blockchain-id`, {
+            registryId: formData.registryId,
+            blockchainId: newBlockchainId
+          })
+          console.log("  ✅ Database Sync Complete!")
+        }
+      } catch (syncErr: any) {
+        console.warn("  ⚠️ Sync failed (ignoring):", syncErr.message)
+      }
       
       setIsRegistered(true)
     } catch (error: any) {
@@ -424,11 +419,11 @@ export default function RegisterPropertyPage() {
                       <h4 className="font-bold text-sm text-emerald-400 uppercase tracking-widest">Base Identity</h4>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label className="text-[10px] uppercase font-black text-slate-500 tracking-[0.2em] ml-1">Registry ID *</Label>
-                          <Input value={formData.registryId} onChange={(e) => handleInputChange("registryId", e.target.value)} className="bg-secondary/50 border-border/50 rounded-2xl py-6 focus:border-emerald-500/50 transition-all font-mono" placeholder="e.g. DEED-8829" required />
+                          <Label className="text-[10px] uppercase font-black text-slate-500 tracking-[0.2em] ml-1">SRO Deed Number / Reg ID *</Label>
+                          <Input value={formData.registryId} onChange={(e) => handleInputChange("registryId", e.target.value)} className="bg-secondary/50 border-border/50 rounded-2xl py-6 focus:border-emerald-500/50 transition-all font-mono" placeholder="e.g. 2024/8829" required />
                         </div>
                         <div className="space-y-2">
-                            <Label className="text-[10px] uppercase font-black text-slate-500 tracking-[0.2em] ml-1">Plot Number *</Label>
+                            <Label className="text-[10px] uppercase font-black text-slate-500 tracking-[0.2em] ml-1">Khasra / Survey Number *</Label>
                             <Input value={formData.plotNumber} onChange={(e) => handleInputChange("plotNumber", e.target.value)} className="bg-secondary/50 border-border/50 rounded-2xl py-6 focus:border-emerald-500/50 transition-all font-mono" placeholder="e.g. 402/B" required />
                         </div>
                       </div>
@@ -558,7 +553,11 @@ export default function RegisterPropertyPage() {
                                     onChange={(e) => handleInputChange("unit", e.target.value)}
                                 >
                                     <option value="sqft">SQ FT</option>
-                                    <option value="sqyd">SQ YD</option>
+                                    <option value="sqyd">GAJ / SQ YD</option>
+                                    <option value="bigha">BIGHA</option>
+                                    <option value="kanal">KANAL</option>
+                                    <option value="marla">MARLA</option>
+                                    <option value="cent">CENT</option>
                                     <option value="acre">ACRE</option>
                                     <option value="hectare">HECTARE</option>
                                 </select>

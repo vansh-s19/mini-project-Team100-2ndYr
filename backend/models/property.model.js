@@ -20,6 +20,7 @@ const propertySchema = new mongoose.Schema({
   furnishedStatus: { type: String },
   ipfsHash: { type: String },
   verified: { type: Boolean, default: false },
+  blockchainId: { type: Number },
   imageUrl: { type: String },
   createdAt: { type: Date, default: Date.now },
 });

@@ -48,15 +48,13 @@ router.post("/register", async (req, res) => {
     });
     const token = generateToken(user);
 
+    const userToReturn = user.toObject();
+    delete userToReturn.password;
+
     res.status(201).json({
       success: true,
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
+      user: userToReturn,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -75,15 +73,13 @@ router.post("/login", async (req, res) => {
 
     const token = generateToken(user);
 
+    const userToReturn = user.toObject();
+    delete userToReturn.password;
+
     res.json({
       success: true,
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
+      user: userToReturn,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

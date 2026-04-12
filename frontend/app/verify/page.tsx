@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import axios from "axios"
 import { useSearchParams } from "next/navigation"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
@@ -54,34 +55,81 @@ export default function PublicVerificationPage() {
   // Auto-search if ?id= query param is present
   useEffect(() => {
     const id = searchParams.get("id")
-    if (id && contract) {
+    if (id) {
       setSearchQuery(id)
-      performSearch(parseInt(id))
+      performSearch(id)
     }
   }, [searchParams, contract])
 
-  const performSearch = async (propertyId: number) => {
-    if (!contract) return
+  const BACKEND_URL = "http://localhost:5001"
+
+  const performSearch = async (query: string) => {
     setIsSearching(true)
     setNotFound(false)
     setResult(null)
 
     try {
-      const prop = await contract.getProperty(propertyId)
-      const history = await contract.getOwnershipHistory(propertyId)
+      let propertyId: number | null = null
+      let dbResult: any = null
+      
+      // 1. Try treating query as a direct Blockchain ID (if it's a number)
+      const parsedId = parseInt(query)
+      if (!isNaN(parsedId) && parsedId > 0 && parsedId.toString() === query.trim()) {
+        propertyId = parsedId
+      }
+      
+      // 2. Database Lookup (Primary for Registry IDs, Fallback for matching strings)
+      console.log("  🔍 Searching Database for:", query)
+      const dbResp = await axios.get(`${BACKEND_URL}/api/property/search?query=${encodeURIComponent(query)}`)
+      if (dbResp.data.success && dbResp.data.properties.length > 0) {
+        dbResult = dbResp.data.properties[0]
+        if (dbResult.blockchainId) {
+          propertyId = dbResult.blockchainId
+          console.log("  ✅ Found linked Blockchain ID:", propertyId)
+        }
+      }
 
-      setResult({
-        id: prop.id.toNumber(),
-        ownerName: prop.ownerName,
-        owner: prop.owner,
-        registryId: prop.registryId,
-        ipfsHash: prop.ipfsHash,
-        verified: prop.verified,
-        area: prop.area,
-        propertyAddress: prop.propertyAddress,
-        timestamp: prop.timestamp.toNumber(),
-        ownershipHistory: history,
-      })
+      // 3. If we have a propertyId AND a contract, get live blockchain data
+      if (propertyId && contract) {
+        try {
+          const prop = await contract.getProperty(propertyId)
+          const history = await contract.getOwnershipHistory(propertyId)
+
+          setResult({
+            id: prop.id.toNumber(),
+            ownerName: prop.ownerName,
+            owner: prop.owner,
+            registryId: prop.registryId,
+            ipfsHash: prop.ipfsHash,
+            verified: prop.verified,
+            area: prop.area,
+            propertyAddress: prop.propertyAddress,
+            timestamp: prop.timestamp.toNumber(),
+            ownershipHistory: history,
+          })
+          return;
+        } catch (contractErr) {
+          console.warn("  ⚠️ Blockchain fetch failed, falling back to DB:", contractErr)
+        }
+      }
+
+      // 4. Fallback: Show result from Database if no blockchain data is available
+      if (dbResult) {
+        setResult({
+          id: dbResult.blockchainId || 0,
+          ownerName: dbResult.ownerNames,
+          owner: dbResult.ownerAddress,
+          registryId: dbResult.registryId,
+          ipfsHash: dbResult.ipfsHash,
+          verified: dbResult.verified,
+          area: dbResult.area,
+          propertyAddress: dbResult.address,
+          timestamp: Math.floor(new Date(dbResult.createdAt).getTime() / 1000),
+          ownershipHistory: [dbResult.ownerAddress],
+        })
+      } else {
+        throw new Error("Property not found")
+      }
     } catch (error) {
       console.error("Search error:", error)
       setNotFound(true)
@@ -93,12 +141,7 @@ export default function PublicVerificationPage() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     if (!searchQuery.trim()) return
-    const id = parseInt(searchQuery)
-    if (isNaN(id) || id <= 0) {
-      alert("Please enter a valid property ID (positive number)")
-      return
-    }
-    performSearch(id)
+    performSearch(searchQuery.trim())
   }
 
   const copyToClipboard = (text: string) => {
@@ -111,7 +154,14 @@ export default function PublicVerificationPage() {
     })
   }
 
-  const truncateAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`
+  const truncateAddress = (addr: string) => {
+    if (!addr) return "N/A"
+    try {
+      return `${addr.slice(0, 6)}...${addr.slice(-4)}`
+    } catch (e) {
+      return addr || "N/A"
+    }
+  }
 
   return (
     <main className="min-h-screen bg-[#0f1513]">
@@ -151,7 +201,7 @@ export default function PublicVerificationPage() {
                     className="h-12 rounded-xl bg-secondary/50 pl-12 text-base"
                   />
                 </div>
-                <Button type="submit" size="lg" className="h-12 gap-2 rounded-xl px-8" disabled={isSearching || !contract}>
+                <Button type="submit" size="lg" className="h-12 gap-2 rounded-xl px-8" disabled={isSearching}>
                   {isSearching ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -211,7 +261,7 @@ export default function PublicVerificationPage() {
                       </Badge>
                     </div>
                     <p className="text-muted-foreground">{result.propertyAddress}</p>
-                    <p className="mt-1 font-mono text-sm text-muted-foreground">Property #{result.id}</p>
+                    <p className="mt-1 font-mono text-sm text-muted-foreground uppercase tracking-wider">Khasra / ID #{result.id}</p>
                   </div>
                   <div className="flex-1 text-right">
                     <Button onClick={() => setIsModalOpen(true)} className="rounded-xl gap-2 font-black text-xs uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-500/20">
@@ -236,7 +286,7 @@ export default function PublicVerificationPage() {
                       <span className="font-mono text-sm">{truncateAddress(result.owner)}</span>
                     </div>
                     <div className="flex justify-between border-b border-border/50 pb-3">
-                      <span className="text-muted-foreground">Registry ID</span>
+                      <span className="text-muted-foreground uppercase text-[10px] font-bold tracking-widest">SRO Deed / Registry ID</span>
                       <span className="font-mono text-sm">{result.registryId}</span>
                     </div>
                     <div className="flex justify-between border-b border-border/50 pb-3">

@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
 
-  // Load user from localStorage on init
+  // Load user from localStorage on init AND fetch latest from DB
   useEffect(() => {
     const storedToken = localStorage.getItem("token")
     const storedUser = localStorage.getItem("user")
@@ -48,6 +48,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (storedToken && storedUser) {
       setToken(storedToken)
       setUser(JSON.parse(storedUser))
+      
+      // Fetch latest profile to ensure sync (handles cases where token exists but profile was updated elsewhere)
+      fetch(`${API_URL}/auth/me`, {
+        headers: { Authorization: `Bearer ${storedToken}` }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setUser(data.user)
+          localStorage.setItem("user", JSON.stringify(data.user))
+        }
+      })
+      .catch(err => console.error("Failed to sync profile:", err))
     }
     setIsLoading(false)
   }, [])

@@ -36,8 +36,7 @@ mongoose.connection.on('error', err => {
 
 // ───────────────────────── Middleware ─────────────────────────
 app.use(cors({
-  origin: ["http://localhost:5173", "http://localhost:3000"],
-  methods: ["GET", "POST"],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   credentials: true,
 }));
 app.use(express.json());
