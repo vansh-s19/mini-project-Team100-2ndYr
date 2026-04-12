@@ -61,11 +61,7 @@ export default function RegisterPropertyPage() {
     }
   }, [user, authLoading, router])
 
-  if (authLoading) return (
-    <div className="min-h-screen bg-[#0f1513] flex items-center justify-center">
-      <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
-    </div>
-  )
+
 
 
 
@@ -87,6 +83,12 @@ export default function RegisterPropertyPage() {
     ownershipType: "Freehold",
     furnishedStatus: ""
   })
+
+  if (authLoading) return (
+    <div className="min-h-screen bg-[#0f1513] flex items-center justify-center">
+      <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
+    </div>
+  )
 
   // ───────────────────────── Logic ─────────────────────────
 

@@ -143,6 +143,53 @@ router.post("/geocode", async (req, res) => {
   }
 });
 
+/**
+ * @route POST /api/property/ensure-record
+ * @desc Create a DB record for a blockchain property if it doesn't exist
+ */
+router.post("/ensure-record", async (req, res) => {
+  try {
+    const { registryId, ownerAddress, ownerNames, area, address } = req.body;
+    
+    let property = await Property.findOne({ registryId });
+    
+    if (!property) {
+      console.log(`Creating missing DB record for Registry ID: ${registryId}`);
+      property = new Property({
+        registryId,
+        ownerAddress,
+        ownerNames,
+        area,
+        address,
+        district: address.split(",")[0].trim() || "Unknown", // Fallback for market filter
+        propertyStatus: "Ready to Move",
+        propertyType: "Apartment"
+      });
+      await property.save();
+    }
+    
+    res.json({ success: true, dbId: property._id });
+  } catch (error) {
+    console.error("Ensure Record Error:", error.message);
+    res.status(500).json({ error: "Failed to sync property record" });
+  }
+});
+
+/**
+ * @route GET /api/property/owner/:address
+ * @desc Get all properties registered in DB for an owner
+ */
+router.get("/owner/:address", async (req, res) => {
+  try {
+    const { address } = req.params;
+    const properties = await Property.find({ ownerAddress: new RegExp(`^${address}$`, "i") });
+    res.json({ success: true, properties });
+  } catch (error) {
+    console.error("Fetch Owner Properties Error:", error.message);
+    res.status(500).json({ error: "Failed to fetch owner properties" });
+  }
+});
+
 // 2. Register Property (Metadata & Files)
 router.post("/register-property", upload.fields([
   { name: "saleDeed", maxCount: 1 },
@@ -219,7 +266,44 @@ router.post("/register-property", upload.fields([
     res.json({ success: true, metadataHash: metadataCid });
   } catch (error) {
     console.error("Register Property Error:", error.message);
-    res.status(500).json({ error: "Failed to process property metadata" });
+    res.status(500).json({ error: "Failed to fetch properties" });
+  }
+});
+
+/**
+ * @route PATCH /api/property/:id/list
+ * @desc Toggle property listing status on market
+ */
+router.patch("/:id/list", async (req, res) => {
+  const { id } = req.params;
+  const { isListed, listPrice, marketCategory, ownerAddress } = req.body;
+  
+  console.log(`Listing Request for ${id}:`, { isListed, listPrice, marketCategory, ownerAddress });
+
+  try {
+    const property = await Property.findById(id);
+    if (!property) return res.status(404).json({ error: "Property not found" });
+
+    console.log(`Found Property owner: ${property.ownerAddress}`);
+
+    // Simple security: Check ownership
+    if (property.ownerAddress.toLowerCase() !== ownerAddress.toLowerCase()) {
+      console.warn(`Auth Failure: ${property.ownerAddress} !== ${ownerAddress}`);
+      return res.status(403).json({ error: "Not authorized to list this property" });
+    }
+
+    property.isListed = isListed;
+    if (isListed) {
+      property.listPrice = listPrice;
+      property.marketCategory = marketCategory;
+    }
+
+    await property.save();
+    console.log("Property updated successfully");
+    res.json({ message: `Property ${isListed ? "listed on" : "removed from"} market`, property });
+  } catch (error) {
+    console.error("Listing error:", error);
+    res.status(500).json({ error: "Failed to update listing status" });
   }
 });
 

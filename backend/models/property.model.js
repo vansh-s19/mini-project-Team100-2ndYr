@@ -22,6 +22,9 @@ const propertySchema = new mongoose.Schema({
   verified: { type: Boolean, default: false },
   blockchainId: { type: Number },
   imageUrl: { type: String },
+  isListed: { type: Boolean, default: false },
+  listPrice: { type: Number }, // Price in INR
+  marketCategory: { type: String, enum: ["Buying", "Rental"] },
   createdAt: { type: Date, default: Date.now },
 });
 

@@ -117,7 +117,7 @@ export default function MarketPage() {
       const cityMatch = cityFilter === "All" || p.city === cityFilter
       const searchMatch = !searchTerm || [
         p.propertyName, p.city, p.address, p.ownerName, p.type
-      ].some(val => val.toLowerCase().includes(searchTerm.toLowerCase()))
+      ].some(val => val && val.toLowerCase().includes(searchTerm.toLowerCase()))
       
       return modeMatch && cityMatch && searchMatch
     })

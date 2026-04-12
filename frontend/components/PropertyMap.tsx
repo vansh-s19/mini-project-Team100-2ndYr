@@ -5,6 +5,8 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import MarkerClusterGroup from 'react-leaflet-cluster'
+import axios from 'axios'
+import { TrendingUp, Activity, Sparkles, Loader2, AlertCircle } from 'lucide-react'
 
 // Fix default icons
 delete (L.Icon.Default.prototype as any)._getIconUrl
@@ -76,7 +78,9 @@ function getIcon(p: PropertyData, isSelected: boolean) {
 function FlyToSelected({ prop }: { prop: PropertyData | null }) {
   const map = useMap()
   useEffect(() => {
-    if (prop) map.flyTo([prop.lat, prop.lng], 14, { duration: 1 })
+    if (prop && prop.lat && prop.lng) {
+      map.flyTo([prop.lat, prop.lng], 14, { duration: 1 })
+    }
   }, [prop, map])
   return null
 }
@@ -97,7 +101,22 @@ export default function PropertyMap({
   onSelectProperty: (p: PropertyData) => void
 }) {
   const [mounted, setMounted] = useState(false)
+  const [roiCache, setRoiCache] = useState<Record<string, any>>({})
+
   useEffect(() => { setMounted(true) }, [])
+
+  const fetchROI = async (p: PropertyData) => {
+    if (roiCache[p.propertyName]) return
+
+    setRoiCache(prev => ({ ...prev, [p.propertyName]: { loading: true } }))
+    try {
+      const response = await axios.post('http://localhost:5001/api/ai/estimate-roi', { property: p })
+      setRoiCache(prev => ({ ...prev, [p.propertyName]: { ...response.data, loading: false } }))
+    } catch (error) {
+      console.error("ROI Fetch Error:", error)
+      setRoiCache(prev => ({ ...prev, [p.propertyName]: { loading: false, error: true } }))
+    }
+  }
 
   if (!mounted) return (
     <div className="w-full h-full bg-slate-100 flex items-center justify-center rounded-2xl animate-pulse">
@@ -138,6 +157,7 @@ export default function PropertyMap({
           }}
         >
           {properties.map((p, i) => {
+            if (!p.lat || !p.lng) return null;
             const isSelected = selectedProperty?.lat === p.lat && selectedProperty?.lng === p.lng && selectedProperty?.propertyName === p.propertyName
             return (
               <Marker
@@ -145,7 +165,10 @@ export default function PropertyMap({
                 position={[p.lat, p.lng]}
                 icon={getIcon(p, isSelected)}
                 eventHandlers={{
-                  click: () => onSelectProperty(p),
+                  click: () => {
+                    onSelectProperty(p)
+                    fetchROI(p)
+                  },
                 }}
               >
                 <Popup className="property-popup" maxWidth={300} minWidth={260}>
@@ -170,6 +193,47 @@ export default function PropertyMap({
                       <span>🏢 {p.type}</span>
                       <span>🪑 {p.furnished}</span>
                       <span>{p.status === 'Ready to Move' ? '✅' : '🔨'} {p.status}</span>
+                    </div>
+
+                    {/* Simple ROI Section */}
+                    <div className="pp-roi-box">
+                      <div className="pp-roi-header">
+                        <Activity className="pp-roi-icon" />
+                        <span className="pp-roi-title">ROI Analysis</span>
+                      </div>
+                      
+                      {roiCache[p.propertyName]?.loading ? (
+                        <div className="pp-roi-loading">
+                          <Loader2 className="pp-roi-spinner" />
+                          <span>Calculating market ROI...</span>
+                        </div>
+                      ) : roiCache[p.propertyName]?.error ? (
+                        <div className="pp-roi-error">
+                          <AlertCircle className="pp-roi-error-icon" />
+                          <span>Analysis unavailable</span>
+                        </div>
+                      ) : roiCache[p.propertyName] ? (
+                        <div className="pp-roi-content">
+                          <div className="pp-roi-stats">
+                            <div className="pp-roi-stat">
+                              <TrendingUp className="pp-stat-icon text-emerald-500" />
+                              <div className="pp-stat-vals">
+                                <span className="pp-stat-label">5yr Return</span>
+                                <span className="pp-stat-val">+{roiCache[p.propertyName].roi_pct}%</span>
+                              </div>
+                            </div>
+                            <div className="pp-roi-stat">
+                              <Activity className="pp-stat-icon text-blue-500" />
+                              <div className="pp-stat-vals">
+                                <span className="pp-stat-label">Rental Yield</span>
+                                <span className="pp-stat-val">{roiCache[p.propertyName].yield_pct}%/yr</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="pp-roi-hint">Click marker to see ROI estimation</p>
+                      )}
                     </div>
                     <div className="pp-foot">
                       <span className="pp-city">📍 {p.city}</span>
@@ -230,6 +294,32 @@ export default function PropertyMap({
           font-size: 11px; color: #475569; font-weight: 500;
         }
         .pp-details span { padding: 5px 8px; background: #f8fafc; border-radius: 8px; }
+
+        /* ROI Styles */
+        .pp-roi-box {
+          margin: 12px 0; padding: 12px; background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+          border: 1px solid #d1fae5; border-radius: 12px;
+        }
+        .pp-roi-header { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+        .pp-roi-icon { width: 14px; height: 14px; color: #059669; }
+        .pp-roi-title { font-size: 11px; font-weight: 800; color: #065f46; text-transform: uppercase; letter-spacing: 0.05em; }
+        
+        .pp-roi-loading { display: flex; align-items: center; gap: 8px; font-size: 10px; color: #059669; font-weight: 600; }
+        .pp-roi-spinner { width: 12px; height: 12px; animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        
+        .pp-roi-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+        .pp-roi-stat { display: flex; align-items: center; gap: 6px; padding: 6px; background: white; border-radius: 8px; border: 1px solid #e2e8f0; }
+        .pp-stat-icon { width: 12px; height: 12px; }
+        .pp-stat-vals { display: flex; flex-direction: column; }
+        .pp-stat-label { font-size: 8px; color: #64748b; font-weight: 700; text-transform: uppercase; }
+        .pp-stat-val { font-size: 12px; color: #0f172a; font-weight: 900; line-height: 1; margin-top: 1px; }
+        
+        .pp-roi-insight { font-size: 10px; color: #065f46; font-weight: 500; font-style: italic; line-height: 1.4; margin: 0; opacity: 0.9; }
+        .pp-roi-hint { font-size: 10px; color: #94a3b8; font-style: italic; text-align: center; margin: 0; }
+        .pp-roi-error { display: flex; align-items: center; gap: 6px; color: #dc2626; font-size: 9px; font-weight: 600; }
+        .pp-roi-error-icon { width: 12px; height: 12px; }
+
         .pp-foot { display: flex; justify-content: space-between; padding-top: 10px; border-top: 1px solid #f1f5f9; }
         .pp-city { font-size: 11px; font-weight: 700; color: #475569; padding: 4px 10px; background: #f1f5f9; border-radius: 50px; }
         .pp-cat { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 50px; }

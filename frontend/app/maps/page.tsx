@@ -65,8 +65,8 @@ function MapsPage() {
     const name = searchParams.get('name')
     if (lat && lng) {
       const found = allProperties.find(p =>
-        p.lat.toString().slice(0, 6) === lat.slice(0, 6) &&
-        p.lng.toString().slice(0, 6) === lng.slice(0, 6)
+        p.lat?.toString().slice(0, 6) === lat?.slice(0, 6) &&
+        p.lng?.toString().slice(0, 6) === lng?.slice(0, 6)
       )
       if (found) {
         setSelectedProperty(found)
@@ -79,9 +79,9 @@ function MapsPage() {
   const filteredProperties = useMemo(() => {
     return allProperties.filter(p => {
       const matchesSearch =
-        p.propertyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.city.toLowerCase().includes(searchTerm.toLowerCase())
+        (p.propertyName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.address || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.city || "").toLowerCase().includes(searchTerm.toLowerCase())
       const matchesMode = p.category === (mode === "Buying" ? "Buying" : "Rental")
       const matchesCity = cityFilter === "All" || p.city === cityFilter
       return matchesSearch && matchesMode && matchesCity

@@ -15,6 +15,16 @@ import {
   SelectTrigger,
   SelectValue 
 } from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 import { 
   Search, 
   Plus, 
@@ -22,9 +32,16 @@ import {
   Building2,
   LayoutGrid,
   List,
-  Loader2
+  Loader2,
+  TrendingUp,
+  Activity,
+  XCircle,
+  CheckCircle2,
+  Tag,
+  IndianRupee
 } from "lucide-react"
 import { useWeb3 } from "@/context/Web3Context"
+import axios from "axios"
 
 interface Property {
   id: number
@@ -36,6 +53,11 @@ interface Property {
   ipfsHash: string
   verified: boolean
   exists: boolean
+  // DB-sync fields
+  dbId?: string
+  isListed?: boolean
+  listPrice?: number
+  marketCategory?: string
 }
 
 const statusStyles = {
@@ -51,18 +73,26 @@ export default function MyPropertiesPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
 
+  // Listing Modal State
+  const [isListingModalOpen, setIsListingModalOpen] = useState(false)
+  const [selectedPropertyForListing, setSelectedPropertyForListing] = useState<Property | null>(null)
+  const [listingPrice, setListingPrice] = useState("")
+  const [listingCategory, setListingCategory] = useState<"Buying" | "Rental">("Buying")
+  const [isSubmittingListing, setIsSubmittingListing] = useState(false)
+
   const loadMyProperties = useCallback(async () => {
     if (!contract || !account) return
     setLoading(true)
     try {
+      // 1. Fetch from Blockchain
       const propIds = await contract.getPropertiesByOwner(account)
-      const props: Property[] = []
+      const blockchainProps: any[] = []
 
       for (const id of propIds) {
         try {
           const prop = await contract.getProperty(id.toNumber())
           if (prop.exists) {
-            props.push({
+            blockchainProps.push({
               id: prop.id.toNumber(),
               ownerName: prop.ownerName,
               owner: prop.owner,
@@ -77,7 +107,28 @@ export default function MyPropertiesPage() {
         } catch { /* skip */ }
       }
 
-      setProperties(props)
+      // 2. Fetch from DB for enrichment (isListed, listPrice etc)
+      let dbProps: any[] = []
+      try {
+        const dbResp = await axios.get(`http://localhost:5001/api/property/owner/${account}`)
+        if (dbResp.data.success) dbProps = dbResp.data.properties
+      } catch (err) {
+        console.error("DB Fetch Error:", err)
+      }
+
+      // 3. Merge Data
+      const enriched = blockchainProps.map(bp => {
+        const dp = dbProps.find(p => p.registryId === bp.registryId)
+        return {
+          ...bp,
+          dbId: dp?._id,
+          isListed: dp?.isListed || false,
+          listPrice: dp?.listPrice,
+          marketCategory: dp?.marketCategory
+        }
+      })
+
+      setProperties(enriched)
     } catch (error) {
       console.error("Error loading properties:", error)
     } finally {
@@ -93,6 +144,103 @@ export default function MyPropertiesPage() {
       setLoading(false)
     }
   }, [isConnected, loadMyProperties])
+
+  const handleToggleListing = async (property: Property, isUnlisting = false) => {
+    if (!property.dbId) {
+       alert("Property record not found in database. Please contact support.")
+       return
+    }
+
+    if (isUnlisting) {
+      if (!confirm("Are you sure you want to remove this property from the marketplace?")) return
+      try {
+        await axios.patch(`http://localhost:5001/api/property/${property.dbId}/list`, {
+          isListed: false,
+          ownerAddress: account
+        })
+        loadMyProperties()
+      } catch (error) {
+        alert("Failed to unlist property")
+      }
+      return
+    }
+
+    // Listing flow
+    const priceStr = prompt("Enter listing price (in ₹ Lakhs):", "50")
+    if (!priceStr) return
+    const priceNum = parseFloat(priceStr) * 100000 // Convert Lakhs to raw INR
+
+    const category = prompt("Market Category (Buying / Rental):", "Buying")
+    if (!category || (category !== "Buying" && category !== "Rental")) {
+       alert("Invalid category. Must be 'Buying' or 'Rental'")
+       return
+    }
+
+    try {
+      await axios.patch(`http://localhost:5001/api/property/${property.dbId}/list`, {
+        isListed: true,
+        listPrice: priceNum,
+        marketCategory: listingCategory,
+        ownerAddress: account
+      })
+      setIsListingModalOpen(false)
+      loadMyProperties()
+    } catch (error) {
+      alert("Failed to list property")
+    } finally {
+      setIsSubmittingListing(false)
+    }
+  }
+
+  const handleSubmitListing = async () => {
+    if (!selectedPropertyForListing) return
+    
+    setIsSubmittingListing(true)
+    try {
+      let currentDbId = selectedPropertyForListing.dbId;
+
+      // 1. If DB ID is missing, try to auto-sync/repair it
+      if (!currentDbId) {
+        console.log("Auto-syncing property record before listing...");
+        const syncResp = await axios.post("http://localhost:5001/api/property/ensure-record", {
+          registryId: selectedPropertyForListing.registryId,
+          ownerAddress: account,
+          ownerNames: selectedPropertyForListing.ownerName,
+          area: selectedPropertyForListing.area,
+          address: selectedPropertyForListing.propertyAddress
+        })
+        if (syncResp.data.success) {
+          currentDbId = syncResp.data.dbId;
+        } else {
+          throw new Error("Failed to sync property record");
+        }
+      }
+
+      // 2. Proceed with listing patch
+      const priceNum = parseFloat(listingPrice) * 100000 // Convert Lakhs to raw INR
+      await axios.patch(`http://localhost:5001/api/property/${currentDbId}/list`, {
+        isListed: true,
+        listPrice: priceNum,
+        marketCategory: listingCategory,
+        ownerAddress: account
+      })
+      
+      setIsListingModalOpen(false)
+      loadMyProperties()
+    } catch (error) {
+      console.error("Listing Error:", error);
+      alert("Failed to finalize listing. Please try again.");
+    } finally {
+      setIsSubmittingListing(false)
+    }
+  }
+
+  const openListingModal = (property: Property) => {
+    setSelectedPropertyForListing(property)
+    setListingPrice("")
+    setListingCategory("Buying")
+    setIsListingModalOpen(true)
+  }
 
   const filteredProperties = properties.filter(property => {
     const status = property.verified ? "verified" : "pending"
@@ -227,19 +375,121 @@ export default function MyPropertiesPage() {
                                   <span className="text-muted-foreground">Registry ID</span>
                                   <span className="font-mono text-xs">{property.registryId}</span>
                                 </div>
+                                <div className="flex justify-between border-t border-border/30 pt-3 text-sm">
+                                  <span className="text-muted-foreground">Market Status</span>
+                                  <Badge 
+                                    variant="secondary" 
+                                    className={`gap-1 rounded-md text-[10px] uppercase font-bold tracking-wider ${property.isListed ? "bg-emerald-500/10 text-emerald-500" : "bg-zinc-500/10 text-zinc-500"}`}
+                                  >
+                                    {property.isListed ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                                    {property.isListed ? "On Market" : "Internal"}
+                                  </Badge>
+                                </div>
+                                {property.isListed && (
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Listed Price</span>
+                                    <span className="font-bold text-emerald-500">
+                                      ₹{(property.listPrice || 0) >= 100000 
+                                        ? `${((property.listPrice || 0) / 100000).toFixed(1)} L` 
+                                        : (property.listPrice || 0).toLocaleString()}
+                                    </span>
+                                  </div>
+                                )}
                               </div>
-                              <Button asChild variant="outline" className="mt-4 w-full gap-2 rounded-xl">
-                                <Link href={`/verify?id=${property.id}`}>
-                                  <Eye className="h-4 w-4" />
-                                  View Details
-                                </Link>
-                              </Button>
+                              
+                              <div className="mt-4 flex gap-2">
+                                <Button asChild variant="outline" className="flex-1 gap-2 rounded-xl text-xs h-9">
+                                  <Link href={`/verify?id=${property.id}`}>
+                                    <Eye className="h-4 w-4" />
+                                    View
+                                  </Link>
+                                </Button>
+                                
+                                <Button 
+                                  onClick={() => {
+                                    if (property.isListed) {
+                                      handleToggleListing(property, true)
+                                    } else {
+                                      openListingModal(property)
+                                    }
+                                  }}
+                                  variant={property.isListed ? "destructive" : "secondary"} 
+                                  className={`flex-1 gap-2 rounded-xl text-xs h-9 font-bold uppercase tracking-tight ${!property.isListed && "bg-emerald-600 hover:bg-emerald-500 text-white"}`}
+                                >
+                                  {property.isListed ? (
+                                    <><XCircle className="h-4 w-4" /> Unlist</>
+                                  ) : (
+                                    <><Tag className="h-4 w-4" /> List On Market</>
+                                  )}
+                                </Button>
+                              </div>
                             </CardContent>
                           </Card>
                         )
                       })}
                     </div>
                   )}
+
+                  {/* Listing Modal */}
+                  <Dialog open={isListingModalOpen} onOpenChange={setIsListingModalOpen}>
+                    <DialogContent className="sm:max-w-[425px] bg-[#1a211e] border-white/5 rounded-2xl">
+                      <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                          <Tag className="w-5 h-5 text-emerald-500" />
+                          List Asset on Marketplace
+                        </DialogTitle>
+                        <DialogDescription className="text-slate-400">
+                          Configure the market positioning for your property asset. This will be visible to all Vanguard users.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-6 py-4">
+                        <div className="space-y-2">
+                          <Label className="text-xs font-bold uppercase tracking-widest text-slate-500">Listing Category</Label>
+                          <div className="flex bg-secondary/30 p-1 rounded-xl border border-white/5">
+                            {(["Buying", "Rental"] as const).map((m) => (
+                              <button
+                                key={m}
+                                onClick={() => setListingCategory(m)}
+                                className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-tight transition-all ${listingCategory === m ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}
+                              >
+                                {m === "Buying" ? "Direct Sale" : "Rental / Lease"}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                            {listingCategory === "Buying" ? "Sale Price (₹ Lakhs)" : "Monthly Rent (₹ Amount)"}
+                          </Label>
+                          <div className="relative">
+                            <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500" />
+                            <Input
+                              type="number"
+                              placeholder={listingCategory === "Buying" ? "e.g. 75" : "e.g. 25000"}
+                              value={listingPrice}
+                              onChange={(e) => setListingPrice(e.target.value)}
+                              className="bg-secondary/50 border-white/10 rounded-xl pl-9 h-12 focus:ring-emerald-500/20 focus:border-emerald-500/50"
+                            />
+                            {listingCategory === "Buying" && (
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase text-slate-500">
+                                Lakhs
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button 
+                          onClick={handleSubmitListing}
+                          disabled={isSubmittingListing || !listingPrice}
+                          className="w-full h-12 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 gap-2"
+                        >
+                          {isSubmittingListing ? <Loader2 className="w-4 h-4 animate-spin" /> : <TrendingUp className="w-4 h-4" />}
+                          Finalize Market Listing
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
 
                   {/* Table View */}
                   {viewMode === "table" && (
