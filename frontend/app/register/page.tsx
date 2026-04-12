@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import dynamic from "next/dynamic"
 import axios from "axios"
+import { useRouter } from "next/navigation"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
@@ -11,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { Upload, FileText, HardDrive, Loader2, ShieldCheck, Sparkles, MapPin, Image as ImageIcon } from "lucide-react"
 import { useWeb3 } from "@/context/Web3Context"
+import { useAuth } from "@/context/AuthContext"
 import { motion } from "framer-motion"
 
 const PinMap = dynamic(() => import("@/components/PinMap"), { ssr: false, loading: () => <div className="h-48 w-full bg-secondary/50 rounded-2xl animate-pulse" /> })
@@ -37,7 +39,10 @@ interface ExtractedData {
 }
 
 export default function RegisterPropertyPage() {
-  const { contract, isConnected } = useWeb3()
+  const { contract, isConnected, account } = useWeb3()
+  const { user, isLoading: authLoading } = useAuth()
+  const router = useRouter()
+
   const [saleDeed, setSaleDeed] = useState<File | null>(null)
   const [ecFile, setEcFile] = useState<File | null>(null)
   const [khataFile, setKhataFile] = useState<File | null>(null)
@@ -48,6 +53,43 @@ export default function RegisterPropertyPage() {
   const [isRegistered, setIsRegistered] = useState(false)
   const [isGeocoding, setIsGeocoding] = useState(false)
   const [ipfsHash, setIpfsHash] = useState("")
+
+  // KYC Guard logic
+  useEffect(() => {
+    if (!authLoading) {
+      if (!user) {
+        router.push("/auth")
+      } else if (!user.name || !user.phone || !user.pan) {
+        router.push("/profile")
+      }
+    }
+  }, [user, authLoading, router])
+
+  if (authLoading) return (
+    <div className="min-h-screen bg-[#0f1513] flex items-center justify-center">
+      <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
+    </div>
+  )
+
+  const isProfileIncomplete = !user?.name || !user?.phone || !user?.pan
+  
+  if (isProfileIncomplete) {
+    return (
+      <main className="min-h-screen bg-[#0f1513] flex items-center justify-center p-4">
+        <Header />
+        <Card className="max-w-md w-full bg-slate-950 border-white/10 rounded-[40px] text-center p-10 border shadow-2xl">
+          <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+            <ShieldCheck className="w-10 h-10 text-emerald-400" />
+          </div>
+          <h2 className="text-2xl font-black text-white mb-4">Identity Verification.</h2>
+          <p className="text-slate-400 mb-8 leading-relaxed font-medium">To protect the integrity of the blockchain registry, you must complete your legal profile before adding property assets.</p>
+          <Button onClick={() => router.push("/profile")} className="w-full bg-emerald-600 hover:bg-emerald-500 rounded-2xl py-6 font-bold shadow-lg shadow-emerald-500/20">
+            Verify Profile Now
+          </Button>
+        </Card>
+      </main>
+    )
+  }
 
   const [formData, setFormData] = useState<ExtractedData>({
     ownerNames: "",
@@ -501,15 +543,24 @@ export default function RegisterPropertyPage() {
                       <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label className="text-[10px] uppercase font-black text-slate-500 tracking-[0.2em] ml-1">Total Area *</Label>
-                            <div className="flex gap-2">
-                                <Input type="number" value={formData.area} onChange={(e) => handleInputChange("area", e.target.value)} className="bg-secondary/50 border-border/50 rounded-2xl py-[14px] focus:border-emerald-500/50 transition-all font-mono flex-1 text-sm" placeholder="1500" required />
-                                <select className={`${selectClasses} w-[100px]`} value={formData.unit} onChange={(e) => handleInputChange("unit", e.target.value)}>
-                                    <option value="sqft">sq ft</option>
-                                    <option value="sqyd">sq yd</option>
-                                    <option value="acre">acre</option>
-                                    <option value="hectare">hectare</option>
-                                    <option value="kanal">kanal</option>
-                                    <option value="bigha">bigha</option>
+                            <div className="flex items-stretch gap-0 rounded-2xl overflow-hidden border border-border/50 focus-within:border-emerald-500/50 transition-all">
+                                <Input 
+                                    type="number" 
+                                    value={formData.area} 
+                                    onChange={(e) => handleInputChange("area", e.target.value)} 
+                                    className="bg-secondary/50 border-none rounded-none py-6 flex-1 text-sm focus-visible:ring-0" 
+                                    placeholder="1500" 
+                                    required 
+                                />
+                                <select 
+                                    className="bg-secondary/70 border-l border-border/50 px-4 text-xs font-bold text-emerald-400 outline-none appearance-none cursor-pointer hover:bg-secondary transition-colors" 
+                                    value={formData.unit} 
+                                    onChange={(e) => handleInputChange("unit", e.target.value)}
+                                >
+                                    <option value="sqft">SQ FT</option>
+                                    <option value="sqyd">SQ YD</option>
+                                    <option value="acre">ACRE</option>
+                                    <option value="hectare">HECTARE</option>
                                 </select>
                             </div>
                           </div>

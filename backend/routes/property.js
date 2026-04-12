@@ -106,7 +106,7 @@ router.post("/register-property", upload.fields([
 ]), async (req, res) => {
   try {
     const {
-      registryId, ownerNames, plotNumber, address, lat, lng,
+      registryId, ownerAddress, ownerNames, plotNumber, address, lat, lng,
       state, district, propertyType, residentialSubType, bhk, area, unit,
       propertyStatus, ownershipType, furnishedStatus
     } = req.body;
@@ -160,7 +160,7 @@ router.post("/register-property", upload.fields([
     // Save to DB (Optional fallback to preserve state)
     try {
         const newProp = new Property({
-        registryId, ownerNames, plotNumber, area, address, lat, lng,
+        registryId, ownerAddress, ownerNames, plotNumber, area, address, lat, lng,
         state, district, propertyType, residentialSubType, bhk, unit,
         propertyStatus, ownershipType, furnishedStatus, ipfsHash: metadataCid
         });

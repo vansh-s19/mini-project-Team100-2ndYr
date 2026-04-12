@@ -18,7 +18,6 @@ export default function ProfilePage() {
     email: "",
     phone: "",
     pan: "",
-    aadhar: "",
     address: "",
     city: "",
     state: "",
@@ -33,7 +32,6 @@ export default function ProfilePage() {
         email: user.email || "",
         phone: (user as any).phone || "",
         pan: (user as any).pan || "",
-        aadhar: (user as any).aadhar || "",
         address: (user as any).address || "",
         city: (user as any).city || "",
         state: (user as any).state || "",
@@ -76,6 +74,14 @@ export default function ProfilePage() {
                 ? "Manage your administrative credentials and departmental settings." 
                 : "Manage your identity and KYC details for secure property handling."}
             </p>
+            {!isLoading && user && (
+              <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 mt-4">
+                <div className={`w-2 h-2 rounded-full ${user.name && user.phone && user.pan ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]'}`} />
+                <span className="text-[10px] font-black uppercase tracking-widest">
+                  {user.name && user.phone && user.pan ? 'Digital Identity Verified' : 'Action Required: Complete Profile'}
+                </span>
+              </motion.div>
+            )}
           </motion.div>
 
           <div className="grid gap-8 lg:grid-cols-3">
@@ -158,15 +164,6 @@ export default function ProfilePage() {
                         <div className="relative">
                           <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                           <Input name="pan" value={formData.pan} onChange={handleChange} className="bg-slate-950/50 border-white/10 pl-10 h-11 font-mono uppercase" placeholder={user?.role === "authority" ? "GOV-12345" : "ABCDE1234F"} />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">
-                          {user?.role === "authority" ? "Verification Staff ID" : "Aadhar Number"}
-                        </label>
-                        <div className="relative">
-                          <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                          <Input name="aadhar" value={formData.aadhar} onChange={handleChange} className="bg-slate-950/50 border-white/10 pl-10 h-11 font-mono" placeholder={user?.role === "authority" ? "STAFF-001" : "1234 5678 9012"} />
                         </div>
                       </div>
                     </div>

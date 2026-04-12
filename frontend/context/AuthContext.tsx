@@ -9,6 +9,13 @@ interface User {
   email: string
   role: string
   avatar?: string
+  phone?: string
+  pan?: string
+  address?: string
+  city?: string
+  state?: string
+  pincode?: string
+  occupation?: string
 }
 
 interface AuthContextType {
